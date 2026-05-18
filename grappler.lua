@@ -23,7 +23,12 @@ local sGrapplerShoot = {
     shoot4              = Sprite.new("sGrapplerShoot4",     path.combine(SPRITE_PATH, "shoot4.png"),       1, 0, 0)
 }
 
+local sGrapplerWhip     = Sprite.new("sGrapplerWhip",       path.combine(SPRITE_PATH, "whip.png"), 10, 15, 16)
 local sGrapplerSkills = Sprite.new("sGrapplerSkills", path.combine(SPRITE_PATH, "skills.png"), 5)
+
+
+
+
 
 --Create the new survivor instance: grappler
 local grappler = Survivor.new("grappler")
@@ -86,6 +91,13 @@ utility.cooldown = 240
 special.damage = 3
 special.cooldown = 120
 
+
+--create objects for the different skills
+local oGrapplerWhip = Object.new("GrapplerWhip")
+oGrapplerWhip:set_sprite(sGrapplerWhip)
+oGrapplerWhip:set_depth(1)
+
+
 -- create states that the actor can "be in"
 local statePrimary = ActorState.new(primary.identifier)
 statePrimary.activity_flags = ActorState.ActivityFlag.ALLOW_ROPE_CANCEL
@@ -112,4 +124,19 @@ Callback.add(primary.on_step, function(actor, data)
     actor:actor_animation_set(sGrapplerShoot.shoot1, 0.2)
 
     actor:skill_util_exit_state_on_anim_end()
+end)
+
+Callback.add(secondary.on_step, function (actor, data)
+    actor:actor_animation_set(sGrapplerShoot.shoot2, 0.2)
+    
+    --supposedly this chunk of code will create a whip object
+    local whip = oGrapplerWhip:create(actor.x, actor.y)
+    local whipData = Instance.get_data(whip)
+    whipData.parent = actor
+    whipData.damage = secondary.damage
+    whip.direction = actor.skill_util_facing_direction()
+
+
+    actor:skill_util_exit_state_on_anim_end()
+
 end)
