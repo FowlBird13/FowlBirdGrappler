@@ -17,9 +17,9 @@ local sprites = {
 
 -- Create a table with the ability animations (referred to as "shoot")
 local sGrapplerShoot = {
-    shoot1_1              = Sprite.new("sGrapplerShoot1_1",     path.combine(SPRITE_PATH, "shoot1_1.png"),       5, 15, 16),
-    shoot1_2              = Sprite.new("sGrapplerShoot1_2",     path.combine(SPRITE_PATH, "shoot1_2.png"),       5, 15, 16),
-    shoot1_3              = Sprite.new("sGrapplerShoot1_3",     path.combine(SPRITE_PATH, "shoot1_3.png"),       5, 15, 16),
+    shoot1_1              = Sprite.new("sGrapplerShoot1_1",     path.combine(SPRITE_PATH, "shoot1_1.png"),       5, 12, 50),
+    shoot1_2              = Sprite.new("sGrapplerShoot1_2",     path.combine(SPRITE_PATH, "shoot1_2.png"),       5, 12, 50),
+    shoot1_3              = Sprite.new("sGrapplerShoot1_3",     path.combine(SPRITE_PATH, "shoot1_3.png"),       5, 46, 50),
     shoot2              = Sprite.new("sGrapplerShoot2",     path.combine(SPRITE_PATH, "shoot2.png"),     10, 16, 16),
     shoot3              = Sprite.new("sGrapplerShoot3",     path.combine(SPRITE_PATH, "shoot3.png"),       1, 0, 0),
     shoot4              = Sprite.new("sGrapplerShoot4",     path.combine(SPRITE_PATH, "shoot4.png"),       1, 0, 0)
@@ -130,18 +130,23 @@ Callback.add(statePrimary.on_enter, function(actor, data)
         data.attack_anim = 0
     end
 
-    actor.sprite_index = sGrapplerShoot.shoot1_1
+    -- actor.sprite_index = sGrapplerShoot.shoot1_1
     if data.attack_anim == 1 then
         actor.sprite_index = sGrapplerShoot.shoot1_2
+        data.attack_anim = 2
     elseif data.attack_anim == 2 then
         actor.sprite_index = sGrapplerShoot.shoot1_3
+        data.attack_anim = 0
+    elseif data.attack_anim == 0 then
+        actor.sprite_index = sGrapplerShoot.shoot1_1
+        data.attack_anim = 1
     end
 
 end)
 
 Callback.add(statePrimary.on_step, function(actor, data)
     actor:skill_util_fix_hspeed()
-    actor:actor_animation_set(actor.sprite_index, 0.3)
+    actor:actor_animation_set(actor.sprite_index, 0.5)
 
     if actor.image_index >= 0 and data.fired == 0 then
         data.fired = 1
