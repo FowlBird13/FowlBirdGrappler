@@ -53,15 +53,15 @@ end)
 --These base stats and level stats needed to be added and balanced. Miner and Drifter would be good to look at
 grappler:set_stats_base({
     health = 10000,
-    damage = 10,
-    regen = 100
+    damage = 11,
+    regen = 0.011
 })
 
 grappler:set_stats_level({
-    health = 1,
-    damage = 2,
-    regen = 1,
-    armor = 1,
+    health = 36,
+    damage = 3,
+    regen = 0.001,
+    armor = 2,
 })
 
 local primary = grappler:get_skills(0)[1]
@@ -181,8 +181,23 @@ Callback.add(stateSecondary.on_step, function (actor, data)
         local damage = actor:skill_get_damage(secondary)
         actor:fire_explosion(actor.x + actor.image_xscale * 30, actor.y, 320, 40, damage, nil, sHitSpark)
     end
-
-
     
+    actor:skill_util_exit_state_on_anim_end()
+end)
+
+Callback.add(stateUtility.on_enter, function(actor, data)
+    actor.image_index = 0
+    data.fired = 0
+end)
+
+Callback.add(stateUtility.on_step, function(actor, data)
+    actor:skill_util_fix_hspeed()
+    actor:actor_animation_set(sGrapplerShoot.shoot3, 0.3)
+
+    if actor.image_index >= 0 and data.fired == 0 then
+        data.fired = 1
+    end
+
+
     actor:skill_util_exit_state_on_anim_end()
 end)
