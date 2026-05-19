@@ -85,9 +85,9 @@ special.sprite = sGrapplerSkills
 special.subimage = 3
 
 primary.damage = 1
-primary.cooldown = 1 * 60
+primary.cooldown = 10
 secondary.damage = 3
-secondary.cooldown = 2 *60
+secondary.cooldown = 2 * 60
 utility.damage = 5
 utility.cooldown = 4 * 60
 special.damage = 3
@@ -146,7 +146,11 @@ end)
 
 Callback.add(statePrimary.on_step, function(actor, data)
     actor:skill_util_fix_hspeed()
-    actor:actor_animation_set(actor.sprite_index, 0.5)
+    actor:actor_animation_set(actor.sprite_index, 0.3)
+
+    if data.attack_anim == 0 then
+        actor.pHspeed = 3.0 * actor.pHmax * actor.image_xscale
+    end
 
     if actor.image_index >= 0 and data.fired == 0 then
         data.fired = 1
