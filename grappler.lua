@@ -21,13 +21,14 @@ local sGrapplerShoot = {
     shoot1_2              = Sprite.new("sGrapplerShoot1_2",     path.combine(SPRITE_PATH, "shoot1_2.png"),       5, 12, 50),
     shoot1_3              = Sprite.new("sGrapplerShoot1_3",     path.combine(SPRITE_PATH, "shoot1_3.png"),       5, 46, 50),
     shoot2              = Sprite.new("sGrapplerShoot2",     path.combine(SPRITE_PATH, "shoot2.png"),     10, 16, 16),
-    shoot3              = Sprite.new("sGrapplerShoot3",     path.combine(SPRITE_PATH, "shoot3.png"),       1, 0, 0),
+    shoot3              = Sprite.new("sGrapplerShoot3",     path.combine(SPRITE_PATH, "shoot3.png"),       1, 12, 16),
     shoot4              = Sprite.new("sGrapplerShoot4",     path.combine(SPRITE_PATH, "shoot4.png"),       1, 0, 0)
 }
 
 local sHitSpark     = Sprite.new("sHitSpark",       path.combine(SPRITE_PATH, "hit_spark.png"), 6, 16, 16)
 local sGrapplerSkills = Sprite.new("sGrapplerSkills", path.combine(SPRITE_PATH, "skills.png"), 5)
-local sRopeTracer = Sprite.new("sRopeTracer", path.combine(SPRITE_PATH, "tracer.png", 1))
+local sRopeTracer = Sprite.new("sRopeTracer", path.combine(SPRITE_PATH, "tracer.png", 1, 16, 16))
+local sHook = Sprite.new("sHook", path.combine(SPRITE_PATH, "hook.png", 1, 16, 16))
 -- To Do: add tracer png
 
 
@@ -206,7 +207,21 @@ Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
 end)
 
 local rope_tracer = Tracer.new("grapplerMantle")
--- Create tracer callback
+rope_tracer.show_sparks_if_miss = 1
+
+rope_tracer:set_callback(function(x1, y1, x2, y2, color)
+
+    local distance = Math.distance(x1, y1, x2, y2)
+    local direction = Math.direction(x1, y1, x2, y2)
+
+    local inst = Object.find("WISPG"):create(x1, y1) --gotta find the right objetc identifier
+    inst.direction = direction
+    inst.speed = 60
+    inst.length = 80
+    inst.blend_1 = Color.from_rgb(0, 255, 255)
+    inst.blend_2 = Color.from_rgb(255, 255, 0)
+    inst:alarm_set(0, math.max(1, distance / inst.speed))
+end)
 
 Callback.add(stateUtility.on_enter, function(actor, data)
     actor.image_index = 0
@@ -215,7 +230,7 @@ end)
 
 Callback.add(stateUtility.on_step, function(actor, data)
     actor:skill_util_fix_hspeed()
-    actor:actor_animation_set(sGrapplerShoot.shoot3, 0.3)
+    actor:actor_animation_set(sGrapplerShoot.shoot3, 1)
 
     if actor.image_index >= 0 and data.fired == 0 then
         data.fired = 1
@@ -223,9 +238,10 @@ Callback.add(stateUtility.on_step, function(actor, data)
         local damage = actor:skill_get_damage(utility)
         local direction = actor:skill_util_facing_direction()
         -- To Do: add tracer object sprite
-        actor.fire_bullet(actor.x, actor.y, 700, direction, damage, nil, blalalal, rope_tracer).attack_info
+        local attack_info
+        attack_info.attack_info = actor:fire_bullet(actor.x, actor.y, 700, direction, damage, nil, sHook, rope_tracer).attack_info
+        attack_info.__attacker = actor
     end
-
 
     actor:skill_util_exit_state_on_anim_end()
 end)

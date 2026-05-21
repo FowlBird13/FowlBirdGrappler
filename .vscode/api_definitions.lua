@@ -18,3 +18,6 @@
 
 ---@class Sound
 ---@field new fun(id: string, sound_path: string): Sound
+
+---@class Tracer
+---@field new fun(id: string): any
