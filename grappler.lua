@@ -27,8 +27,8 @@ local sGrapplerShoot = {
 
 local sHitSpark     = Sprite.new("sHitSpark",       path.combine(SPRITE_PATH, "hit_spark.png"), 6, 16, 16)
 local sGrapplerSkills = Sprite.new("sGrapplerSkills", path.combine(SPRITE_PATH, "skills.png"), 5)
-
-
+local sRopeTracer = Sprite.new("sRopeTracer", path.combine(SPRITE_PATH, "tracer.png", 1))
+-- To Do: add tracer png
 
 
 
@@ -86,7 +86,7 @@ special.subimage = 3
 
 primary.damage = 1
 primary.cooldown = 10
-secondary.damage = 3
+secondary.damage = 0.5
 secondary.cooldown = 2 * 60
 utility.damage = 5
 utility.cooldown = 4 * 60
@@ -148,6 +148,7 @@ Callback.add(statePrimary.on_step, function(actor, data)
     actor:skill_util_fix_hspeed()
     actor:actor_animation_set(actor.sprite_index, 0.3)
 
+    --To Do: Stretch the third attacks hitbox so it scales with move speed.
     if data.attack_anim == 0 then
         actor.pHspeed = 3.0 * actor.pHmax * actor.image_xscale
     end
@@ -159,7 +160,7 @@ Callback.add(statePrimary.on_step, function(actor, data)
 
         local damage = actor:skill_get_damage(primary)
 
-        actor:fire_explosion(actor.x + actor.image_xscale * 30, actor.y, 100, 65, damage, nil, sHitSpark)
+        actor:fire_explosion(actor.x + actor.image_xscale*30, actor.y, 100, 65, damage, nil, sHitSpark)
     end
     
     
@@ -175,15 +176,37 @@ Callback.add(stateSecondary.on_step, function (actor, data)
     actor:skill_util_fix_hspeed()
     actor:actor_animation_set(sGrapplerShoot.shoot2, 0.4)
 
-
+    
     if actor.image_index >= 6 and data.fired == 0 then
         data.fired = 1
         local damage = actor:skill_get_damage(secondary)
-        actor:fire_explosion(actor.x + actor.image_xscale * 30, actor.y, 320, 40, damage, nil, sHitSpark)
+        local attack_info = actor:fire_explosion(actor.x + actor.image_xscale * 150, actor.y, 320, 40, damage, nil, sHitSpark).attack_info
+        attack_info.__secondary_yoink = 1
+        attack_info.__attacker_x = actor.x
     end
     
     actor:skill_util_exit_state_on_anim_end()
 end)
+
+Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
+    local is_secondary_hit = hit_info.attack_info.__secondary_yoink
+    if Net.host then
+        if is_secondary_hit then
+            local target = hit_info.target
+            local attacker_x = hit_info.attack_info.__attacker_x
+            local direction = Math.sign(attacker_x - target.x)
+
+            local distance = Math.distance(attacker_x, 0, target.x, 0)
+
+            local force = distance/21
+
+            target:apply_knockback(-direction, 20, force, 4)
+        end
+    end
+end)
+
+local rope_tracer = Tracer.new("grapplerMantle")
+-- Create tracer callback
 
 Callback.add(stateUtility.on_enter, function(actor, data)
     actor.image_index = 0
@@ -196,6 +219,11 @@ Callback.add(stateUtility.on_step, function(actor, data)
 
     if actor.image_index >= 0 and data.fired == 0 then
         data.fired = 1
+
+        local damage = actor:skill_get_damage(utility)
+        local direction = actor:skill_util_facing_direction()
+        -- To Do: add tracer object sprite
+        actor.fire_bullet(actor.x, actor.y, 700, direction, damage, nil, blalalal, rope_tracer).attack_info
     end
 
 
