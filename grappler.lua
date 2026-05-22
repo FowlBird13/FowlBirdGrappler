@@ -32,7 +32,6 @@ local sHook = Sprite.new("sHook", path.combine(SPRITE_PATH, "hook.png", 1, 16, 1
 -- To Do: add tracer png
 
 
-
 --Create the new survivor instance: grappler
 local grappler = Survivor.new("grappler")
 
@@ -51,7 +50,7 @@ Callback.add(grappler.on_init, function(actor)
 	actor.sprite_climb_hurt		= sprites.climb_hurt
 end)
 
---These base stats and level stats needed to be added and balanced. Miner and Drifter would be good to look at
+--These base stats and level stats need to be added and balanced. Miner and Drifter would be good to look at
 grappler:set_stats_base({
     health = 10000,
     damage = 11,
@@ -86,9 +85,10 @@ special.sprite = sGrapplerSkills
 special.subimage = 3
 
 primary.damage = 1
-primary.cooldown = 10
+primary.cooldown = 25
 secondary.damage = 0.5
 secondary.cooldown = 2 * 60
+secondary.is_utility = true
 utility.damage = 5
 utility.cooldown = 4 * 60
 special.damage = 3
@@ -131,7 +131,6 @@ Callback.add(statePrimary.on_enter, function(actor, data)
         data.attack_anim = 0
     end
 
-    -- actor.sprite_index = sGrapplerShoot.shoot1_1
     if data.attack_anim == 1 then
         actor.sprite_index = sGrapplerShoot.shoot1_2
         data.attack_anim = 2
@@ -162,10 +161,17 @@ Callback.add(statePrimary.on_step, function(actor, data)
         local damage = actor:skill_get_damage(primary)
 
         actor:fire_explosion(actor.x + actor.image_xscale*30, actor.y, 100, 65, damage, nil, sHitSpark)
+        
     end
-    
-    
     actor:skill_util_exit_state_on_anim_end()
+    
+end)
+
+Callback.add(statePrimary.on_exit, function(actor, data)
+    if data.attack_anim == 0 then
+        local primary_skill = actor:get_active_skill(Skill.Slot.PRIMARY)
+        primary_skill:override_cooldown(25)
+    end
 end)
 
 Callback.add(stateSecondary.on_enter, function(actor, data)
@@ -199,7 +205,7 @@ Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
 
             local distance = Math.distance(attacker_x, 0, target.x, 0)
 
-            local force = distance/21
+            local force = distance/24
 
             target:apply_knockback(-direction, 20, force, 4)
         end
@@ -210,17 +216,22 @@ local rope_tracer = Tracer.new("grapplerMantle")
 rope_tracer.show_sparks_if_miss = 1
 
 rope_tracer:set_callback(function(x1, y1, x2, y2, color)
+    y1 = y1 - 8
+	y2 = y2 - 8
 
     local distance = Math.distance(x1, y1, x2, y2)
     local direction = Math.direction(x1, y1, x2, y2)
 
-    local inst = Object.find("WISPG"):create(x1, y1) --gotta find the right objetc identifier
+    local inst = Object.find("EfProjectileTracer"):create(x1, y1) --gotta find the right object identifier
     inst.direction = direction
     inst.speed = 60
     inst.length = 80
     inst.blend_1 = Color.from_rgb(0, 255, 255)
     inst.blend_2 = Color.from_rgb(255, 255, 0)
     inst:alarm_set(0, math.max(1, distance / inst.speed))
+
+
+
 end)
 
 Callback.add(stateUtility.on_enter, function(actor, data)
@@ -239,7 +250,7 @@ Callback.add(stateUtility.on_step, function(actor, data)
         local direction = actor:skill_util_facing_direction()
         -- To Do: add tracer object sprite
         local attack_info
-        attack_info.attack_info = actor:fire_bullet(actor.x, actor.y, 700, direction, damage, nil, sHook, rope_tracer).attack_info
+        attack_info = actor:fire_bullet(actor.x, actor.y, 700, direction, damage, nil, sHook, rope_tracer).attack_info
         attack_info.__attacker = actor
     end
 
