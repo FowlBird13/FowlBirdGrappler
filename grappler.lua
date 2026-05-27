@@ -89,6 +89,7 @@ special.subimage = 3
 primary.damage = 1
 primary.cooldown = 25
 primary.is_primary = true
+local MAX_POGO_CHARGE = 3
 
 secondary.damage = 0.5
 secondary.cooldown = 2 * 60
@@ -143,7 +144,14 @@ Callback.add(statePrimary.on_enter, function(actor, data)
         actor.pogo_charges = 0
     end
 
-    if Util.bool(actor.free) and actor.pogo_charges > 0 then
+    local player = Player.get_local()
+    data.perform_pogo = false
+    if Util.bool(actor.free) and actor.pogo_charges > 0 and player:control("down", 0) then
+        data.perform_pogo = true
+    end
+
+
+    if data.perform_pogo then
         actor.sprite_index = sGrapplerShoot.shoot1b
         data.attack_anim = 1
     else
@@ -166,8 +174,9 @@ end)
 Callback.add(statePrimary.on_step, function(actor, data)
     actor:skill_util_fix_hspeed()
     actor:actor_animation_set(actor.sprite_index, 0.3)
+    local player = Player.get_local()
 
-    if Util.bool(actor.free) and actor.pogo_charges > 0 then
+    if data.perform_pogo then
         if actor.image_index >= 1 and data.fired == 0 then
             data.fired = 1
             local damage = actor:skill_get_damage(primary)
@@ -207,7 +216,9 @@ end)
 Callback.add(Callback.ON_KILL_PROC, function(target, attacker)
     -- increase the charges of the pogo primary on a kill
     if attacker.pogo_charges ~= nil then
-        attacker.pogo_charges = attacker.pogo_charges + 1
+        if attacker.pogo_charges <= MAX_POGO_CHARGE then
+            attacker.pogo_charges = attacker.pogo_charges + 1
+        end
     end
 
 end)
