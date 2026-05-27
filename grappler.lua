@@ -89,6 +89,8 @@ special.subimage = 3
 primary.damage = 1
 primary.cooldown = 25
 primary.is_primary = true
+primary.override_strafe_direction = true
+primary.ignore_aim_direction = true
 local MAX_POGO_CHARGE = 3
 
 secondary.damage = 0.5
@@ -187,6 +189,7 @@ Callback.add(statePrimary.on_step, function(actor, data)
         end
     else
         --To Do: Stretch the third attacks hitbox so it scales with move speed.
+        
         if data.attack_anim == 0 then
             actor.pHspeed = 3.0 * actor.pHmax * actor.image_xscale
         end
