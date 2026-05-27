@@ -4,33 +4,33 @@ local SPRITE_PATH = path.combine(PATH, "Sprites")
 
 -- Create a table with the basic animations
 local sprites = {
-    idle			    = Sprite.new("sGrapplerIdle",       path.combine(SPRITE_PATH, "idle.png"),     1, 15, 17),
-    walk		        = Sprite.new("sGrapplerWalk",		path.combine(SPRITE_PATH, "walk.png"),     1, 15, 17),
-    jump		        = Sprite.new("sGrapplerJump",		path.combine(SPRITE_PATH, "jump.png"),     1, 15, 17),
-    jump_peak	        = Sprite.new("sGrapplerJumpPeak",	path.combine(SPRITE_PATH, "jump_peak.png"), 1, 15, 17),
-    fall		        = Sprite.new("sGrapplerFall",		path.combine(SPRITE_PATH, "fall.png"),     1, 15, 17),
-    climb		        = Sprite.new("sUtilitylimb",		path.combine(SPRITE_PATH, "climb.png"),    1, 13, 17),
-    climb_hurt	        = Sprite.new("sUtilitylimbHurt",	path.combine(SPRITE_PATH, "climb.png"),    1, 13, 17),
-    death		        = Sprite.new("sGrapplerDeath",		path.combine(SPRITE_PATH, "death.png"),    1, 15, 17),
-    decoy		        = Sprite.new("sGrapplerDecoy",		path.combine(SPRITE_PATH, "decoy.png"),    1, 15, 17)
+    idle			    = Sprite.new("sGrapplerIdle",       path.combine(SPRITE_PATH, "idle.png"),          1, 15, 17),
+    walk		        = Sprite.new("sGrapplerWalk",		path.combine(SPRITE_PATH, "walk.png"),          1, 15, 17),
+    jump		        = Sprite.new("sGrapplerJump",		path.combine(SPRITE_PATH, "jump.png"),          1, 15, 17),
+    jump_peak	        = Sprite.new("sGrapplerJumpPeak",	path.combine(SPRITE_PATH, "jump_peak.png"),     1, 15, 17),
+    fall		        = Sprite.new("sGrapplerFall",		path.combine(SPRITE_PATH, "fall.png"),          1, 15, 17),
+    climb		        = Sprite.new("sUtilitylimb",		path.combine(SPRITE_PATH, "climb.png"),         1, 13, 17),
+    climb_hurt	        = Sprite.new("sUtilitylimbHurt",	path.combine(SPRITE_PATH, "climb.png"),         1, 13, 17),
+    death		        = Sprite.new("sGrapplerDeath",		path.combine(SPRITE_PATH, "death.png"),         1, 15, 17),
+    decoy		        = Sprite.new("sGrapplerDecoy",		path.combine(SPRITE_PATH, "decoy.png"),         1, 15, 17)
 }
 
 -- Create a table with the ability animations (referred to as "shoot")
 local sGrapplerShoot = {
-    shoot1_1              = Sprite.new("sGrapplerShoot1_1",     path.combine(SPRITE_PATH, "shoot1_1.png"),       5, 12, 50),
-    shoot1_2              = Sprite.new("sGrapplerShoot1_2",     path.combine(SPRITE_PATH, "shoot1_2.png"),       5, 12, 50),
-    shoot1_3              = Sprite.new("sGrapplerShoot1_3",     path.combine(SPRITE_PATH, "shoot1_3.png"),       5, 46, 50),
-    shoot1b              = Sprite.new("sGrapplerShoot1b",     path.combine(SPRITE_PATH, "shoot1b.png"),       5, 7, 7),
-    shoot2              = Sprite.new("sGrapplerShoot2",     path.combine(SPRITE_PATH, "shoot2.png"),     10, 16, 16),
-    shoot3              = Sprite.new("sGrapplerShoot3",     path.combine(SPRITE_PATH, "shoot3.png"),       1, 16, 16),
-    shoot4              = Sprite.new("sGrapplerShoot4",     path.combine(SPRITE_PATH, "shoot4.png"),       1, 0, 0)
+    shoot1_1            = Sprite.new("sGrapplerShoot1_1",   path.combine(SPRITE_PATH, "shoot1_1.png"),      5, 12, 50),
+    shoot1_2            = Sprite.new("sGrapplerShoot1_2",   path.combine(SPRITE_PATH, "shoot1_2.png"),      5, 12, 50),
+    shoot1_3            = Sprite.new("sGrapplerShoot1_3",   path.combine(SPRITE_PATH, "shoot1_3.png"),      5, 46, 50),
+    shoot1b             = Sprite.new("sGrapplerShoot1b",    path.combine(SPRITE_PATH, "shoot1b.png"),       5, 7, 7),
+    shoot2              = Sprite.new("sGrapplerShoot2",     path.combine(SPRITE_PATH, "shoot2.png"),        10, 16, 16),
+    shoot3              = Sprite.new("sGrapplerShoot3",     path.combine(SPRITE_PATH, "shoot3.png"),        1, 16, 16),
+    shoot4              = Sprite.new("sGrapplerShoot4",     path.combine(SPRITE_PATH, "shoot4.png"),        1, 0, 0)
 }
 
-local sHitSpark     = Sprite.new("sHitSpark",       path.combine(SPRITE_PATH, "hit_spark.png"), 6, 16, 16)
-local sGrapplerSkills = Sprite.new("sGrapplerSkills", path.combine(SPRITE_PATH, "skills.png"), 5)
-local sRopeTracer = Sprite.new("sRopeTracer", path.combine(SPRITE_PATH, "tracer.png", 1, 16, 16))
-local sHook = Sprite.new("sHook", path.combine(SPRITE_PATH, "hook.png", 1, 16, 16))
-local lightLineTracer = Particle.new("sGrapplerLineParticle")
+local sHitSpark         = Sprite.new("sHitSpark",           path.combine(SPRITE_PATH, "hit_spark.png"),     6, 16, 16)
+local sGrapplerSkills   = Sprite.new("sGrapplerSkills",     path.combine(SPRITE_PATH, "skills.png"),        5)
+local sRopeTracer       = Sprite.new("sRopeTracer",         path.combine(SPRITE_PATH, "tracer.png",         1, 16, 16))
+local sHook             = Sprite.new("sHook",               path.combine(SPRITE_PATH, "hook.png",           1, 16, 16))
+local lightLineTracer   = Particle.new("sGrapplerLineParticle")
 -- To Do: add tracer png
 
 
@@ -88,6 +88,7 @@ special.subimage = 3
 
 primary.damage = 1
 primary.cooldown = 25
+primary.is_primary = true
 
 secondary.damage = 0.5
 secondary.cooldown = 2 * 60
@@ -128,6 +129,8 @@ Callback.add(special.on_activate, function(actor, skill, slot)
 end)
 
 --Perform the skills 
+
+-- Primary Skill
 Callback.add(statePrimary.on_enter, function(actor, data)
     actor.image_index = 0
     data.fired = 0
@@ -215,7 +218,7 @@ Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
     end
 end)
 
-
+--Secondary skill
 Callback.add(stateSecondary.on_enter, function(actor, data)
     actor.image_index = 0
     data.fired = 0
@@ -254,6 +257,7 @@ Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
     end
 end)
 
+--Utility skill
 local rope_tracer = Tracer.new("grapplerMantle")
 rope_tracer.show_sparks_if_miss = 1
 
@@ -306,3 +310,14 @@ Callback.add(stateUtility.on_step, function(actor, data)
     actor:skill_util_exit_state_on_anim_end()
 end)
 
+--Special Skill
+Callback.add(stateSpecial.on_enter, function(actor, data)
+    actor.image_index = 0
+    data.fired = 0
+end)
+
+Callback.add(stateUtility.on_step, function(actor, data)
+    
+    
+    actor:skill_util_exit_state_on_anim_end()
+end)
