@@ -20,8 +20,9 @@ local sGrapplerShoot = {
     shoot1_1              = Sprite.new("sGrapplerShoot1_1",     path.combine(SPRITE_PATH, "shoot1_1.png"),       5, 12, 50),
     shoot1_2              = Sprite.new("sGrapplerShoot1_2",     path.combine(SPRITE_PATH, "shoot1_2.png"),       5, 12, 50),
     shoot1_3              = Sprite.new("sGrapplerShoot1_3",     path.combine(SPRITE_PATH, "shoot1_3.png"),       5, 46, 50),
+    shoot1b              = Sprite.new("sGrapplerShoot1b",     path.combine(SPRITE_PATH, "shoot1b.png"),       5, 7, 7),
     shoot2              = Sprite.new("sGrapplerShoot2",     path.combine(SPRITE_PATH, "shoot2.png"),     10, 16, 16),
-    shoot3              = Sprite.new("sGrapplerShoot3",     path.combine(SPRITE_PATH, "shoot3.png"),       1, 12, 16),
+    shoot3              = Sprite.new("sGrapplerShoot3",     path.combine(SPRITE_PATH, "shoot3.png"),       1, 16, 16),
     shoot4              = Sprite.new("sGrapplerShoot4",     path.combine(SPRITE_PATH, "shoot4.png"),       1, 0, 0)
 }
 
@@ -29,6 +30,7 @@ local sHitSpark     = Sprite.new("sHitSpark",       path.combine(SPRITE_PATH, "h
 local sGrapplerSkills = Sprite.new("sGrapplerSkills", path.combine(SPRITE_PATH, "skills.png"), 5)
 local sRopeTracer = Sprite.new("sRopeTracer", path.combine(SPRITE_PATH, "tracer.png", 1, 16, 16))
 local sHook = Sprite.new("sHook", path.combine(SPRITE_PATH, "hook.png", 1, 16, 16))
+local lightLineTracer = Particle.new("sGrapplerLineParticle")
 -- To Do: add tracer png
 
 
@@ -86,11 +88,14 @@ special.subimage = 3
 
 primary.damage = 1
 primary.cooldown = 25
+
 secondary.damage = 0.5
 secondary.cooldown = 2 * 60
 secondary.is_utility = true
+
 utility.damage = 5
 utility.cooldown = 4 * 60
+
 special.damage = 3
 special.cooldown = 2 * 60
 
@@ -127,20 +132,31 @@ Callback.add(statePrimary.on_enter, function(actor, data)
     actor.image_index = 0
     data.fired = 0
 
+    -- cycle through the attack animations of the grounded move
     if not data.attack_anim then
         data.attack_anim = 0
     end
-
-    if data.attack_anim == 1 then
-        actor.sprite_index = sGrapplerShoot.shoot1_2
-        data.attack_anim = 2
-    elseif data.attack_anim == 2 then
-        actor.sprite_index = sGrapplerShoot.shoot1_3
-        data.attack_anim = 0
-    elseif data.attack_anim == 0 then
-        actor.sprite_index = sGrapplerShoot.shoot1_1
-        data.attack_anim = 1
+    if actor.pogo_charges == nil then
+        actor.pogo_charges = 0
     end
+
+    if Util.bool(actor.free) and actor.pogo_charges > 0 then
+        actor.sprite_index = sGrapplerShoot.shoot1b
+        data.attack_anim = 1
+    else
+        if data.attack_anim == 1 then
+            actor.sprite_index = sGrapplerShoot.shoot1_2
+            data.attack_anim = 2
+        elseif data.attack_anim == 2 then
+            actor.sprite_index = sGrapplerShoot.shoot1_3
+            data.attack_anim = 0
+        elseif data.attack_anim == 0 then
+            actor.sprite_index = sGrapplerShoot.shoot1_1
+            data.attack_anim = 1
+        end
+    end
+    
+    
 
 end)
 
@@ -148,20 +164,31 @@ Callback.add(statePrimary.on_step, function(actor, data)
     actor:skill_util_fix_hspeed()
     actor:actor_animation_set(actor.sprite_index, 0.3)
 
-    --To Do: Stretch the third attacks hitbox so it scales with move speed.
-    if data.attack_anim == 0 then
-        actor.pHspeed = 3.0 * actor.pHmax * actor.image_xscale
-    end
+    if Util.bool(actor.free) and actor.pogo_charges > 0 then
+        if actor.image_index >= 1 and data.fired == 0 then
+            data.fired = 1
+            local damage = actor:skill_get_damage(primary)
+            local attack_info = actor:fire_explosion(actor.x + actor.image_xscale*30, actor.y+32, 65, 65, damage, nil, sHitSpark).attack_info
+            attack_info.is_pogo = true
+            attack_info.attacker = actor
+            actor.pogo_charges = actor.pogo_charges - 1
+        end
+    else
+        --To Do: Stretch the third attacks hitbox so it scales with move speed.
+        if data.attack_anim == 0 then
+            actor.pHspeed = 3.0 * actor.pHmax * actor.image_xscale
+        end
 
-    if actor.image_index >= 0 and data.fired == 0 then
-        data.fired = 1
-        
-        actor:skill_util_nudge_forward(2 * actor.image_xscale)
+        if actor.image_index >= 0 and data.fired == 0 then
+            data.fired = 1
+            
+            actor:skill_util_nudge_forward(2 * actor.image_xscale)
 
-        local damage = actor:skill_get_damage(primary)
+            local damage = actor:skill_get_damage(primary)
 
-        actor:fire_explosion(actor.x + actor.image_xscale*30, actor.y, 100, 65, damage, nil, sHitSpark)
-        
+            actor:fire_explosion(actor.x + actor.image_xscale*30, actor.y, 100, 65, damage, nil, sHitSpark)
+            
+        end
     end
     actor:skill_util_exit_state_on_anim_end()
     
@@ -173,6 +200,21 @@ Callback.add(statePrimary.on_exit, function(actor, data)
         primary_skill:override_cooldown(25)
     end
 end)
+
+Callback.add(Callback.ON_KILL_PROC, function(target, attacker)
+    -- increase the charges of the pogo primary on a kill
+    if attacker.pogo_charges ~= nil then
+        attacker.pogo_charges = attacker.pogo_charges + 1
+    end
+
+end)
+
+Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
+    if hit_info.attack_info.is_pogo then
+        hit_info.inflictor.pVspeed = -hit_info.inflictor.pVmax * 1.5
+    end
+end)
+
 
 Callback.add(stateSecondary.on_enter, function(actor, data)
     actor.image_index = 0
@@ -230,8 +272,6 @@ rope_tracer:set_callback(function(x1, y1, x2, y2, color)
     inst.blend_2 = Color.from_rgb(255, 255, 0)
     inst:alarm_set(0, math.max(1, distance / inst.speed))
 
-
-
 end)
 
 Callback.add(stateUtility.on_enter, function(actor, data)
@@ -242,7 +282,6 @@ end)
 Callback.add(stateUtility.on_step, function(actor, data)
     actor:skill_util_fix_hspeed()
     actor:actor_animation_set(sGrapplerShoot.shoot3, 1)
-
     if actor.image_index >= 0 and data.fired == 0 then
         data.fired = 1
 
@@ -251,8 +290,19 @@ Callback.add(stateUtility.on_step, function(actor, data)
         -- To Do: add tracer object sprite
         local attack_info
         attack_info = actor:fire_bullet(actor.x, actor.y, 700, direction, damage, nil, sHook, rope_tracer).attack_info
+        
+        gm.draw_set_colour(Color.from_hsv(0, 77, 100))
+        gm.draw_set_alpha(1)
+        
+        
+        gm.draw_line_width(actor.x + 24 * actor.image_xscale, actor.y - 9 * actor.image_yscale, actor.x + 48 * actor.image_xscale, actor.y - 44 * actor.image_yscale, 3)
+        
+        
+        
         attack_info.__attacker = actor
+        attack_info.__sideTether = 1
     end
 
     actor:skill_util_exit_state_on_anim_end()
 end)
+
