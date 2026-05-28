@@ -30,9 +30,19 @@ local sHitSpark         = Sprite.new("sHitSpark",           path.combine(SPRITE_
 local sGrapplerSkills   = Sprite.new("sGrapplerSkills",     path.combine(SPRITE_PATH, "skills.png"),        5)
 local sRopeTracer       = Sprite.new("sRopeTracer",         path.combine(SPRITE_PATH, "tracer.png",         1, 16, 16))
 local sHook             = Sprite.new("sHook",               path.combine(SPRITE_PATH, "hook.png",           1, 16, 16))
-local lightLineTracer   = Particle.new("sGrapplerLineParticle")
+local lightLineParticle   = Particle.new("sGrapplerLineParticle")
+local particleWispGTracer = Particle.find("WispGTracer")
 -- To Do: add tracer png
 
+local slightLineParticle = Sprite.new("sRopeParticle", path.combine(SPRITE_PATH, "tracer.png",              1, 16, 16))
+
+
+lightLineParticle:set_sprite(slightLineParticle, false, false, false) --sprite, animate, stretch, random
+lightLineParticle:set_life(30, 30) --min, max
+lightLineParticle:set_orientation(0, 0, 0, 0, true) --min, max, increase, wiggle, relative
+lightLineParticle:set_speed(0, 0, 0, 0) --min, max, increase, wiggle
+lightLineParticle:set_size(1, 1, 0, 0) --min, max, increase, wiggle
+lightLineParticle:set_direction(0, 0, 0, 0) --min, max, increase, wiggle
 
 --Create the new survivor instance: grappler
 local grappler = Survivor.new("grappler")
@@ -155,6 +165,8 @@ Callback.add(statePrimary.on_enter, function(actor, data)
     if data.perform_pogo then
         actor.sprite_index = sGrapplerShoot.shoot1b
         data.attack_anim = 1
+        primary.ignore_aim_direction = false
+        primary.override_strafe_direction = false
     else
         if data.attack_anim == 1 then
             actor.sprite_index = sGrapplerShoot.shoot1_2
@@ -218,7 +230,7 @@ end)
 Callback.add(statePrimary.on_exit, function(actor, data)
     if data.attack_anim == 0 then
         local primary_skill = actor:get_active_skill(Skill.Slot.PRIMARY)
-        primary_skill:override_cooldown(25)
+        primary_skill:override_cooldown(30)
     end
 end)
 
@@ -279,6 +291,7 @@ end)
 
 --Utility skill
 local rope_tracer = Tracer.new("grapplerMantle")
+rope_tracer.sparks_offset_y = -5
 rope_tracer.show_sparks_if_miss = 1
 
 rope_tracer:set_callback(function(x1, y1, x2, y2, color)
@@ -288,13 +301,37 @@ rope_tracer:set_callback(function(x1, y1, x2, y2, color)
     local distance = Math.distance(x1, y1, x2, y2)
     local direction = Math.direction(x1, y1, x2, y2)
 
-    local inst = Object.find("EfProjectileTracer"):create(x1, y1) --gotta find the right object identifier
-    inst.direction = direction
-    inst.speed = 60
-    inst.length = 80
-    inst.blend_1 = Color.from_rgb(0, 255, 255)
-    inst.blend_2 = Color.from_rgb(255, 255, 0)
-    inst:alarm_set(0, math.max(1, distance / inst.speed))
+    local inst = Object.find("EfLineTracer"):create(x1, y1) --gotta find the right object identifier
+    
+    inst.xend = x2
+    inst.yend = y2
+    inst.sprite_index = sHook
+    inst.image_speed = 0.1
+    inst.rate = 2
+    inst.blend_1 = Color.from_rgb(255, 0, 0)
+    inst.blend_2 = Color.from_rgb(255, 0, 0)
+    inst.blend_rate = 1
+    inst.image_alpha = 1
+    inst.bm = 1
+    inst.width = 1
+    
+
+
+    lightLineParticle:set_direction(direction, direction, 0, 0)
+
+    local px = x1
+    local i = 0
+    local life_time = 0
+    while i < distance do
+        life_time = i/10
+        lightLineParticle:set_life(life_time, life_time)
+		lightLineParticle:create_color(px, y1, Color.from_rgb(0, 255, 255), 1)
+		px = px + gm.lengthdir_x(4, direction)
+		i = i + 4
+	end
+
+
+
 
 end)
 
@@ -315,11 +352,11 @@ Callback.add(stateUtility.on_step, function(actor, data)
         local attack_info
         attack_info = actor:fire_bullet(actor.x, actor.y, 700, direction, damage, nil, sHook, rope_tracer).attack_info
         
-        gm.draw_set_colour(Color.from_hsv(0, 77, 100))
-        gm.draw_set_alpha(1)
+        -- gm.draw_set_colour(Color.from_hsv(0, 77, 100))
+        -- gm.draw_set_alpha(1)
         
         
-        gm.draw_line_width(actor.x + 24 * actor.image_xscale, actor.y - 9 * actor.image_yscale, actor.x + 48 * actor.image_xscale, actor.y - 44 * actor.image_yscale, 3)
+        -- gm.draw_line_width(actor.x + 24 * actor.image_xscale, actor.y - 9 * actor.image_yscale, actor.x + 48 * actor.image_xscale, actor.y - 44 * actor.image_yscale, 3)
         
         
         
