@@ -310,10 +310,12 @@ Callback.add(objTether.on_step, function(self)
     local y2 = self.victim_y
     local dist = Math.distance(x1, 0, x2, 0)
     local dir = Math.direction(x1, y1, x2, y2)
+    local facing = Math.sign(x1-x2)
 
     if dist > 8 then
         lead.pHspeed = lead.image_xscale * 10
     else
+        lead.pGravity1 = 0.1
         lead.pHspeed = -lead.image_xscale * 5
         lead.pVspeed = -lead.pVmax * 2
         self:destroy()
@@ -396,11 +398,11 @@ Callback.add(stateUtility.on_step, function(actor, data)
     if actor.image_index >= 0 and data.fired == 0 then
         data.fired = 1
 
-        local damage = actor:skill_get_damage(utility)
+        local damage = actor:skill_get_damage(utility) -- damage moved to the secondary explosion
         local direction = actor:skill_util_facing_direction()
         -- To Do: add tracer object sprite
         local attack_info
-        attack_info = actor:fire_bullet(actor.x, actor.y, 700, direction, damage, nil, sHook, rope_tracer).attack_info
+        attack_info = actor:fire_bullet(actor.x, actor.y, 700, direction, 1, nil, sHook, rope_tracer).attack_info
         attack_info.is_tether = true
 
        
@@ -417,11 +419,17 @@ Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
         tether.lead = hit_info.inflictor
         tether.victim_x = hit_info.target.x
         tether.victim_y = hit_info.target.y
-        if Net.host then
-            hit_info.target:apply_knockback(1, 360, 0, Actor.KnockbackKind.STANDARD)
-        end
-
+        
+        local followUpAttack = tether.lead:fire_explosion(tether.victim_x + tether.lead.image_xscale * 32, tether.victim_y + tether.lead.image_xscale * 32, 64, 64, tether.lead:skill_get_damage(utility), nil, sHitSpark).attack_info
+        followUpAttack.is_tether_followup = true
     end
+    -- Create a secondary explosion around the first hit which applies aoe stun and damage
+    if hit_info.attack_info.is_tether_followup then
+        if Net.host then
+            hit_info.target:apply_knockback(1, 90, 0, Actor.KnockbackKind.STANDARD)
+        end
+    end
+
 end)
 
 --Special Skill
