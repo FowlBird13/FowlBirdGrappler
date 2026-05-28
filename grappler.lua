@@ -290,13 +290,63 @@ Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
 end)
 
 --Utility skill
+local objTether = Object.new("GrapplerTether")
+objTether:set_depth(-280)
+
+Callback.add(objTether.on_create, function(self)
+    self.lead = -4
+    self.victim_x = "incorrect x" --These have filler values to throw exceptions if they reach functions without being changed
+    self.victim_y = "incorrect y"
+    -- self:instance_syn()
+end)
+
+Callback.add(objTether.on_step, function(self)
+    if not Instance.exists(self.lead) then self:destroy() return end --I assume this destroys the tether if the player dies (I stole it from Executioner)
+
+    local lead = self.lead
+    local x1 = self.lead.x
+    local y1 = self.lead.y
+    local x2 = self.victim_x
+    local y2 = self.victim_y
+    local dist = Math.distance(x1, 0, x2, 0)
+    local dir = Math.direction(x1, y1, x2, y2)
+
+    if dist > 8 then
+        lead.pHspeed = lead.image_xscale * 10
+    else
+        lead.pHspeed = -lead.image_xscale * 5
+        lead.pVspeed = -lead.pVmax * 2
+        self:destroy()
+    end
+
+    
+
+end)
+
+Callback.add(objTether.on_draw, function(self)
+    local width = 2
+    local x1 = self.lead.x
+    local y1 = self.lead.y
+    local x2 = self.victim_x
+    local y2 = self.victim_y
+
+    gm.draw_set_color(Color.from_rgb(0, 255, 255))
+    gm.draw_set_alpha(1)
+    
+    
+    gm.draw_line_width(x1, y1, x2, y1, width)
+    
+        
+
+end)
+
 local rope_tracer = Tracer.new("grapplerMantle")
 rope_tracer.sparks_offset_y = -5
 rope_tracer.show_sparks_if_miss = 1
 
 rope_tracer:set_callback(function(x1, y1, x2, y2, color)
-    y1 = y1 - 8
-	y2 = y2 - 8
+    y1 = y1
+	y2 = y2
 
     local distance = Math.distance(x1, y1, x2, y2)
     local direction = Math.direction(x1, y1, x2, y2)
@@ -317,18 +367,18 @@ rope_tracer:set_callback(function(x1, y1, x2, y2, color)
     
 
 
-    lightLineParticle:set_direction(direction, direction, 0, 0)
+    -- lightLineParticle:set_direction(direction, direction, 0, 0)
 
-    local px = x1
-    local i = 0
-    local life_time = 0
-    while i < distance do
-        life_time = i/10
-        lightLineParticle:set_life(life_time, life_time)
-		lightLineParticle:create_color(px, y1, Color.from_rgb(0, 255, 255), 1)
-		px = px + gm.lengthdir_x(4, direction)
-		i = i + 4
-	end
+    -- local px = x1
+    -- local i = 0
+    -- local life_time = 0
+    -- while i < distance do
+    --     life_time = (distance - i)/15
+    --     lightLineParticle:set_life(life_time, life_time)
+	-- 	lightLineParticle:create_color(px, y1, Color.from_rgb(0, 255, 255), 1)
+	-- 	px = px + gm.lengthdir_x(4, direction)
+	-- 	i = i + 4
+	-- end
 
 
 
@@ -351,20 +401,27 @@ Callback.add(stateUtility.on_step, function(actor, data)
         -- To Do: add tracer object sprite
         local attack_info
         attack_info = actor:fire_bullet(actor.x, actor.y, 700, direction, damage, nil, sHook, rope_tracer).attack_info
-        
-        -- gm.draw_set_colour(Color.from_hsv(0, 77, 100))
-        -- gm.draw_set_alpha(1)
-        
-        
-        -- gm.draw_line_width(actor.x + 24 * actor.image_xscale, actor.y - 9 * actor.image_yscale, actor.x + 48 * actor.image_xscale, actor.y - 44 * actor.image_yscale, 3)
-        
-        
+        attack_info.is_tether = true
+
+       
         
         attack_info.__attacker = actor
         attack_info.__sideTether = 1
     end
-
     actor:skill_util_exit_state_on_anim_end()
+end)
+
+Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
+    if hit_info.attack_info.is_tether then
+        local tether = objTether:create()
+        tether.lead = hit_info.inflictor
+        tether.victim_x = hit_info.target.x
+        tether.victim_y = hit_info.target.y
+        if Net.host then
+            hit_info.target:apply_knockback(1, 360, 0, Actor.KnockbackKind.STANDARD)
+        end
+
+    end
 end)
 
 --Special Skill
@@ -373,7 +430,7 @@ Callback.add(stateSpecial.on_enter, function(actor, data)
     data.fired = 0
 end)
 
-Callback.add(stateUtility.on_step, function(actor, data)
+Callback.add(stateSpecial.on_step, function(actor, data)
     
     
     actor:skill_util_exit_state_on_anim_end()
