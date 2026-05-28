@@ -203,7 +203,7 @@ Callback.add(statePrimary.on_step, function(actor, data)
         if actor.image_index >= 1 and data.fired == 0 then
             data.fired = 1
             local damage = actor:skill_get_damage(primary)
-            local attack_info = actor:fire_explosion(actor.x + actor.image_xscale*30, actor.y+32, 65, 65, damage, nil, sHitSpark).attack_info
+            local attack_info = actor:fire_explosion(actor.x + actor.image_xscale*30, actor.y+32, 120, 120, damage, nil, sHitSpark).attack_info
             attack_info.is_pogo = true
             attack_info.attacker = actor
             actor.pogo_charges = actor.pogo_charges - 1
@@ -222,7 +222,7 @@ Callback.add(statePrimary.on_step, function(actor, data)
 
             local damage = actor:skill_get_damage(primary)
 
-            actor:fire_explosion(actor.x + actor.image_xscale*30, actor.y, 100, 65, damage, nil, sHitSpark)
+            actor:fire_explosion(actor.x + actor.image_xscale*30, actor.y, 100, 65, damage, nil, sHitSpark, false)
             
         end
     end
@@ -249,7 +249,17 @@ end)
 
 Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
     if hit_info.attack_info.is_pogo then
-        hit_info.inflictor.pVspeed = -hit_info.inflictor.pVmax * 1.5
+        local inflictor = hit_info.inflictor
+        local victim = hit_info.target
+        inflictor.pVspeed = -hit_info.inflictor.pVmax * 1.5
+
+        --execute enemies
+        local executeThreshold = 0.1
+        local maxhp = victim.maxhp
+        local hp = victim.hp
+        local missingPercent = (maxhp - hp) / maxhp
+        local damage = missingPercent * (maxhp * executeThreshold) / (1-executeThreshold)
+        inflictor:fire_direct(victim, damage, 0, victim.x, victim.y, nil, true)
     end
 end)
 
@@ -315,14 +325,15 @@ Callback.add(objTether.on_step, function(self)
     local dist = Math.distance(x1, 0, x2, 0)
     local dir = Math.direction(x1, y1, x2, y2)
     local facing = Math.sign(x1-x2)
+    local damage = lead:skill_get_damage(utility)
 
     if dist > 8 then
         lead.pHspeed = lead.image_xscale * 10
     else
-        lead.pGravity1 = 0.1
+        lead.pGravity1 = 0.8
         lead.pHspeed = -lead.image_xscale * 5
         lead.pVspeed = -lead.pVmax * 2
-        lead:fire_direct(victim, lead:skill_get_damage(utility))
+        lead:fire_explosion(x2 + lead.image_xscale * 1, y2 + lead.image_xscale * 1, 64, 64, damage, nil, sHitSpark)
         self:destroy()
     end
 
@@ -431,7 +442,7 @@ Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
         local followUpAttack = tether.lead:fire_explosion(tether.victim_x + tether.lead.image_xscale * 1, tether.victim_y + tether.lead.image_xscale * 1, 64, 64, 1, nil, sHitSpark).attack_info
         followUpAttack.is_tether_followup = true
     end
-    -- Create a secondary explosion around the first hit which applies aoe stun and damage
+    -- Create a secondary explosion around the first hit which applies aoe stun
     if hit_info.attack_info.is_tether_followup then
         if Net.host then
             hit_info.target:apply_knockback(1, 90, 0, Actor.KnockbackKind.STANDARD)
