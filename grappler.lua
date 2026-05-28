@@ -22,8 +22,12 @@ local sGrapplerShoot = {
     shoot1_3            = Sprite.new("sGrapplerShoot1_3",   path.combine(SPRITE_PATH, "shoot1_3.png"),      5, 46, 50),
     shoot1b             = Sprite.new("sGrapplerShoot1b",    path.combine(SPRITE_PATH, "shoot1b.png"),       5, 7, 7),
     shoot2              = Sprite.new("sGrapplerShoot2",     path.combine(SPRITE_PATH, "shoot2.png"),        10, 16, 16),
-    shoot3              = Sprite.new("sGrapplerShoot3",     path.combine(SPRITE_PATH, "shoot3.png"),        1, 16, 16),
-    shoot4              = Sprite.new("sGrapplerShoot4",     path.combine(SPRITE_PATH, "shoot4.png"),        1, 0, 0)
+    shoot3              = Sprite.new("sGrapplerShoot3_1",   path.combine(SPRITE_PATH, "shoot3_1.png"),      1, 16, 16),
+    shoot3b_1           = Sprite.new("sGrapplerShoot3b_1",  path.combine(SPRITE_PATH, "shoot3b_1.png"),     1, 16, 16),
+    shoot3b_2           = Sprite.new("sGrapplerShoot3b_2",  path.combine(SPRITE_PATH, "shoot3b_2.png"),     1, 16, 16),
+    shoot4              = Sprite.new("sGrapplerShoot4",     path.combine(SPRITE_PATH, "shoot4.png"),        1, 0, 0),
+    shoot4b             = Sprite.new("sGrapplerShoot4b",    path.combine(SPRITE_PATH, "cosmeticFlip.png"),  6, 16, 16),
+    
 }
 
 local sHitSpark         = Sprite.new("sHitSpark",           path.combine(SPRITE_PATH, "hit_spark.png"),     6, 16, 16)
@@ -111,7 +115,6 @@ utility.cooldown = 4 * 60
 
 special.damage = 3
 special.cooldown = 2 * 60
-
 
 --create objects for the different skills
 -- local oGrapplerWhip = Object.new("GrapplerWhip")
@@ -394,7 +397,7 @@ end)
 
 Callback.add(stateUtility.on_step, function(actor, data)
     actor:skill_util_fix_hspeed()
-    actor:actor_animation_set(sGrapplerShoot.shoot3, 1)
+    actor:actor_animation_set(sGrapplerShoot.shoot3_1, 1)
     if actor.image_index >= 0 and data.fired == 0 then
         data.fired = 1
 
@@ -410,6 +413,8 @@ Callback.add(stateUtility.on_step, function(actor, data)
         attack_info.__attacker = actor
         attack_info.__sideTether = 1
     end
+
+
     actor:skill_util_exit_state_on_anim_end()
 end)
 
