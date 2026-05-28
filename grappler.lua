@@ -25,8 +25,8 @@ local sGrapplerShoot = {
     shoot3              = Sprite.new("sGrapplerShoot3_1",   path.combine(SPRITE_PATH, "shoot3_1.png"),      1, 16, 16),
     shoot3b_1           = Sprite.new("sGrapplerShoot3b_1",  path.combine(SPRITE_PATH, "shoot3b_1.png"),     1, 16, 16),
     shoot3b_2           = Sprite.new("sGrapplerShoot3b_2",  path.combine(SPRITE_PATH, "shoot3b_2.png"),     1, 16, 16),
-    shoot4              = Sprite.new("sGrapplerShoot4",     path.combine(SPRITE_PATH, "shoot4.png"),        1, 0, 0),
-    shoot4b             = Sprite.new("sGrapplerShoot4b",    path.combine(SPRITE_PATH, "cosmeticFlip.png"),  6, 16, 16),
+    shoot4b              = Sprite.new("sGrapplerShoot4",     path.combine(SPRITE_PATH, "shoot4.png"),        1, 0, 0),
+    shoot4             = Sprite.new("sGrapplerShoot4b",    path.combine(SPRITE_PATH, "cosmeticFlip.png"),  6, 16, 16),
     
 }
 
@@ -307,6 +307,7 @@ Callback.add(objTether.on_step, function(self)
     if not Instance.exists(self.lead) then self:destroy() return end --I assume this destroys the tether if the player dies (I stole it from Executioner)
 
     local lead = self.lead
+    local victim = self.victim
     local x1 = self.lead.x
     local y1 = self.lead.y
     local x2 = self.victim_x
@@ -321,6 +322,7 @@ Callback.add(objTether.on_step, function(self)
         lead.pGravity1 = 0.1
         lead.pHspeed = -lead.image_xscale * 5
         lead.pVspeed = -lead.pVmax * 2
+        lead:fire_direct(victim, lead:skill_get_damage(utility))
         self:destroy()
     end
 
@@ -397,7 +399,7 @@ end)
 
 Callback.add(stateUtility.on_step, function(actor, data)
     actor:skill_util_fix_hspeed()
-    actor:actor_animation_set(sGrapplerShoot.shoot3_1, 1)
+    actor:actor_animation_set(sGrapplerShoot.shoot3b_1, 1)
     if actor.image_index >= 0 and data.fired == 0 then
         data.fired = 1
 
@@ -422,10 +424,11 @@ Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
     if hit_info.attack_info.is_tether then
         local tether = objTether:create()
         tether.lead = hit_info.inflictor
+        tether.victim = hit_info.target
         tether.victim_x = hit_info.target.x
         tether.victim_y = hit_info.target.y
         
-        local followUpAttack = tether.lead:fire_explosion(tether.victim_x + tether.lead.image_xscale * 32, tether.victim_y + tether.lead.image_xscale * 32, 64, 64, tether.lead:skill_get_damage(utility), nil, sHitSpark).attack_info
+        local followUpAttack = tether.lead:fire_explosion(tether.victim_x + tether.lead.image_xscale * 1, tether.victim_y + tether.lead.image_xscale * 1, 64, 64, 1, nil, sHitSpark).attack_info
         followUpAttack.is_tether_followup = true
     end
     -- Create a secondary explosion around the first hit which applies aoe stun and damage
@@ -441,10 +444,24 @@ end)
 Callback.add(stateSpecial.on_enter, function(actor, data)
     actor.image_index = 0
     data.fired = 0
+    actor.image_index = 0
+    if Util.bool(actor.free) then
+        actor.sprite_index = sGrapplerShoot.shoot4
+    else
+        actor.sprite_index = sGrapplerShoot.shoot4
+    end
 end)
 
 Callback.add(stateSpecial.on_step, function(actor, data)
-    
-    
+    actor:actor_animation_set(actor.sprite_index, 0.3, false)
+    actor:skill_util_fix_hspeed()
+    if data.fired < 1  and not Util.bool(actor.free) then
+        actor.invincible = math.max(actor.invincible, 3)
+        actor.pHspeed = actor.image_xscale * -4 * actor.pHmax
+        data.fired = 1
+    elseif data.fired < 1 and not Util.bool(actor.free) then
+        -- Wouldn't you like to know what goes in this block
+    end
+
     actor:skill_util_exit_state_on_anim_end()
 end)
