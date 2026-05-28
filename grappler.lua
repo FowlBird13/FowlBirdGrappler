@@ -89,8 +89,7 @@ special.subimage = 3
 primary.damage = 1
 primary.cooldown = 25
 primary.is_primary = true
-primary.override_strafe_direction = true
-primary.ignore_aim_direction = true
+primary.ignore_aim_direction = false
 local MAX_POGO_CHARGE = 3
 
 secondary.damage = 0.5
@@ -160,12 +159,18 @@ Callback.add(statePrimary.on_enter, function(actor, data)
         if data.attack_anim == 1 then
             actor.sprite_index = sGrapplerShoot.shoot1_2
             data.attack_anim = 2
+            primary.override_strafe_direction = true
+            primary.ignore_aim_direction = true
         elseif data.attack_anim == 2 then
             actor.sprite_index = sGrapplerShoot.shoot1_3
             data.attack_anim = 0
+            primary.ignore_aim_direction = false
+            primary.override_strafe_direction = false
         elseif data.attack_anim == 0 then
             actor.sprite_index = sGrapplerShoot.shoot1_1
             data.attack_anim = 1
+            primary.ignore_aim_direction = false
+            primary.override_strafe_direction = false
         end
     end
     
@@ -174,6 +179,7 @@ Callback.add(statePrimary.on_enter, function(actor, data)
 end)
 
 Callback.add(statePrimary.on_step, function(actor, data)
+
     actor:skill_util_fix_hspeed()
     actor:actor_animation_set(actor.sprite_index, 0.3)
     local player = Player.get_local()
