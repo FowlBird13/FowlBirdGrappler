@@ -104,7 +104,7 @@ primary.damage = 1
 primary.cooldown = 25
 primary.is_primary = true
 primary.ignore_aim_direction = false
-local MAX_POGO_CHARGE = 3
+local MAX_POGO_CHARGE = 4
 
 secondary.damage = 0.5
 secondary.cooldown = 2 * 60
@@ -203,7 +203,7 @@ Callback.add(statePrimary.on_step, function(actor, data)
         if actor.image_index >= 1 and data.fired == 0 then
             data.fired = 1
             local damage = actor:skill_get_damage(primary)
-            local attack_info = actor:fire_explosion(actor.x + actor.image_xscale*30, actor.y+32, 120, 120, damage, nil, sHitSpark).attack_info
+            local attack_info = actor:fire_explosion(actor.x + actor.image_xscale*30, actor.y+32, 120, 120, 0, nil, sHitSpark).attack_info
             attack_info.is_pogo = true
             attack_info.attacker = actor
             actor.pogo_charges = actor.pogo_charges - 1
@@ -240,7 +240,7 @@ end)
 Callback.add(Callback.ON_KILL_PROC, function(target, attacker)
     -- increase the charges of the pogo primary on a kill
     if attacker.pogo_charges ~= nil then
-        if attacker.pogo_charges <= MAX_POGO_CHARGE then
+        if attacker.pogo_charges < MAX_POGO_CHARGE then
             attacker.pogo_charges = attacker.pogo_charges + 1
         end
     end
@@ -258,8 +258,11 @@ Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
         local maxhp = victim.maxhp
         local hp = victim.hp
         local missingPercent = (maxhp - hp) / maxhp
-        local damage = missingPercent * (maxhp * executeThreshold) / (1-executeThreshold)
-        inflictor:fire_direct(victim, damage, 0, victim.x, victim.y, nil, true)
+
+        local damage = missingPercent * (maxhp * executeThreshold) / (1-executeThreshold) + inflictor:skill_get_damage(primary)
+
+        local executeInfo = inflictor:fire_direct(victim, damage, 0, victim.x, victim.y, nil, true).attack_info
+        executeInfo.is_pogo = false
     end
 end)
 
