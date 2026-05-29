@@ -203,7 +203,7 @@ Callback.add(statePrimary.on_step, function(actor, data)
         if actor.image_index >= 1 and data.fired == 0 then
             data.fired = 1
             local damage = actor:skill_get_damage(primary)
-            local attack_info = actor:fire_explosion(actor.x + actor.image_xscale*30, actor.y+32, 120, 120, 0, nil, sHitSpark).attack_info
+            local attack_info = actor:fire_explosion(actor.x + actor.image_xscale*30, actor.y+32, 120, 120, damage, nil, sHitSpark).attack_info
             attack_info.is_pogo = true
             attack_info.attacker = actor
             actor.pogo_charges = actor.pogo_charges - 1
@@ -259,10 +259,12 @@ Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
         local hp = victim.hp
         local missingPercent = (maxhp - hp) / maxhp
 
-        local damage = missingPercent * (maxhp * executeThreshold) / (1-executeThreshold) + inflictor:skill_get_damage(primary)
+        local damage = (missingPercent * (maxhp * executeThreshold) / (1-executeThreshold)) / inflictor.damage
 
-        local executeInfo = inflictor:fire_direct(victim, damage, 0, victim.x, victim.y, nil, true).attack_info
-        executeInfo.is_pogo = false
+        print("You dealt this much execute: ")
+        print(damage)
+        inflictor:fire_direct(victim, damage, 0, victim.x, victim.y, nil, true)
+    
     end
 end)
 
@@ -421,7 +423,7 @@ Callback.add(stateUtility.on_step, function(actor, data)
         local direction = actor:skill_util_facing_direction()
         -- To Do: add tracer object sprite
         local attack_info
-        attack_info = actor:fire_bullet(actor.x, actor.y, 700, direction, 1, nil, sHook, rope_tracer).attack_info
+        attack_info = actor:fire_bullet(actor.x, actor.y, 700, direction, 0, nil, sHook, rope_tracer).attack_info
         attack_info.is_tether = true
 
        
@@ -442,7 +444,7 @@ Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
         tether.victim_x = hit_info.target.x
         tether.victim_y = hit_info.target.y
         
-        local followUpAttack = tether.lead:fire_explosion(tether.victim_x + tether.lead.image_xscale * 1, tether.victim_y + tether.lead.image_xscale * 1, 64, 64, 1, nil, sHitSpark).attack_info
+        local followUpAttack = tether.lead:fire_explosion(tether.victim_x + tether.lead.image_xscale * 1, tether.victim_y + tether.lead.image_xscale * 1, 64, 64, 0, nil, sHitSpark).attack_info
         followUpAttack.is_tether_followup = true
     end
     -- Create a secondary explosion around the first hit which applies aoe stun
