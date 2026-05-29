@@ -48,6 +48,19 @@ lightLineParticle:set_speed(0, 0, 0, 0) --min, max, increase, wiggle
 lightLineParticle:set_size(1, 1, 0, 0) --min, max, increase, wiggle
 lightLineParticle:set_direction(0, 0, 0, 0) --min, max, increase, wiggle
 
+--Sound effects
+local wGrapplerSounds = {
+    backstep        = Sound.find("HuntressShoot3B"),
+    tether          = Sound.find("SniperShoot3"),
+    swish           = Sound.find("Fwoosh"),
+    quickWhip       = Sound.find("HuntressShoot2"),
+    fullStockAlt1   = Sound.find("Jewel"),
+    fullStockAlt2   = Sound.find("Medallion"),
+    fullStockAlt3   = Sound.find("Mercenary_Parry_Ready"),
+    tetherWhiff     = Sound.find("Mercenary_EviscerateWhiff")
+}
+
+
 --Create the new survivor instance: grappler
 local grappler = Survivor.new("grappler")
 
@@ -105,6 +118,7 @@ primary.cooldown = 25
 primary.is_primary = true
 primary.ignore_aim_direction = false
 local MAX_POGO_CHARGE = 4
+local EXECUTE_THRESHOLD = 0.2
 
 secondary.damage = 0.5
 secondary.cooldown = 2 * 60
@@ -223,7 +237,7 @@ Callback.add(statePrimary.on_step, function(actor, data)
             local damage = actor:skill_get_damage(primary)
 
             actor:fire_explosion(actor.x + actor.image_xscale*30, actor.y, 100, 65, damage, nil, sHitSpark, false)
-            
+            wGrapplerSounds.quickWhip:play(actor.x, actor.y, 0.9, math.random() * 0.1 + 1.5)
         end
     end
     actor:skill_util_exit_state_on_anim_end()
@@ -242,6 +256,9 @@ Callback.add(Callback.ON_KILL_PROC, function(target, attacker)
     if attacker.pogo_charges ~= nil then
         if attacker.pogo_charges < MAX_POGO_CHARGE then
             attacker.pogo_charges = attacker.pogo_charges + 1
+            if attacker.pogo_charges == MAX_POGO_CHARGE then
+                wGrapplerSounds.fullStockAlt1:play(attacker.x, attacker.y, 0.9, math.random() * 0.1 + 0.7)
+            end
         end
     end
 
@@ -254,15 +271,12 @@ Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
         inflictor.pVspeed = -hit_info.inflictor.pVmax * 1.5
 
         --execute enemies
-        local executeThreshold = 0.1
+        local executeThreshold = EXECUTE_THRESHOLD
         local maxhp = victim.maxhp
         local hp = victim.hp
         local missingPercent = (maxhp - hp) / maxhp
 
         local damage = (missingPercent * (maxhp * executeThreshold) / (1-executeThreshold)) / inflictor.damage
-
-        print("You dealt this much execute: ")
-        print(damage)
         inflictor:fire_direct(victim, damage, 0, victim.x, victim.y, nil, true)
     
     end
@@ -285,6 +299,8 @@ Callback.add(stateSecondary.on_step, function (actor, data)
         local attack_info = actor:fire_explosion(actor.x + actor.image_xscale * 150, actor.y, 320, 40, damage, nil, sHitSpark).attack_info
         attack_info.__secondary_yoink = 1
         attack_info.__attacker_x = actor.x
+
+        wGrapplerSounds.swish:play(actor.x, actor.y, 0.9, 0.9)
     end
     
     actor:skill_util_exit_state_on_anim_end()
@@ -315,6 +331,9 @@ Callback.add(objTether.on_create, function(self)
     self.lead = -4
     self.victim_x = "incorrect x" --These have filler values to throw exceptions if they reach functions without being changed
     self.victim_y = "incorrect y"
+    self.stall_timer = 10
+    self.lead_y = "incorrect lead y"
+    self.lead_x = "incorrect lead x"
     -- self:instance_syn()
 end)
 
@@ -329,14 +348,19 @@ Callback.add(objTether.on_step, function(self)
     local y2 = self.victim_y
     local dist = Math.distance(x1, 0, x2, 0)
     local dir = Math.direction(x1, y1, x2, y2)
-    local facing = Math.sign(x1-x2)
+    local facing = math.sin(x1-x2)
     local damage = lead:skill_get_damage(utility)
-
-    if dist > 8 then
-        lead.pHspeed = lead.image_xscale * 10
+    
+    if self.stall_timer > 0 then
+        self.stall_timer = self.stall_timer - 1
+        lead.x = self.lead_x
+        lead.y = self.lead_y
+    elseif dist > 8 then
+        lead.x = x2
+        lead.y = y2
     else
-        lead.pGravity1 = 0.8
-        lead.pHspeed = -lead.image_xscale * 5
+        lead.pGravity1 = 0.5
+        lead.pHspeed = -lead.image_xscale * 3
         lead.pVspeed = -lead.pVmax * 2
         lead:fire_explosion(x2 + lead.image_xscale * 1, y2 + lead.image_xscale * 1, 64, 64, damage, nil, sHitSpark)
         self:destroy()
@@ -425,11 +449,10 @@ Callback.add(stateUtility.on_step, function(actor, data)
         local attack_info
         attack_info = actor:fire_bullet(actor.x, actor.y, 700, direction, 0, nil, sHook, rope_tracer).attack_info
         attack_info.is_tether = true
-
-       
-        
         attack_info.__attacker = actor
         attack_info.__sideTether = 1
+
+        wGrapplerSounds.tether:play(actor.x, actor.y, 0.9, 0.7)
     end
 
 
@@ -443,6 +466,8 @@ Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
         tether.victim = hit_info.target
         tether.victim_x = hit_info.target.x
         tether.victim_y = hit_info.target.y
+        tether.lead_x = hit_info.inflictor.x
+        tether.lead_y = hit_info.inflictor.y
         
         local followUpAttack = tether.lead:fire_explosion(tether.victim_x + tether.lead.image_xscale * 1, tether.victim_y + tether.lead.image_xscale * 1, 64, 64, 0, nil, sHitSpark).attack_info
         followUpAttack.is_tether_followup = true
@@ -475,8 +500,10 @@ Callback.add(stateSpecial.on_step, function(actor, data)
         actor.invincible = math.max(actor.invincible, 3)
         actor.pHspeed = actor.image_xscale * -4 * actor.pHmax
         data.fired = 1
+        wGrapplerSounds.backstep:play(actor.x, actor.y, 0.9 + math.random() * 0.1, 0.9)
     elseif data.fired < 1 and not Util.bool(actor.free) then
         -- Wouldn't you like to know what goes in this block
+        wGrapplerSounds.backstep:play(actor.x, actor.y, 0.9 + math.random() * 0.1, 0.9)
     end
 
     actor:skill_util_exit_state_on_anim_end()
