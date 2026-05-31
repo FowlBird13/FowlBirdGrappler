@@ -22,7 +22,7 @@ return {
         },
         grapplerC = {
             name = "<g>Acrobatic Mantle</c>",
-            description = "<c>Stun the first enemy hit and dash</c> toward them dealing <y>500% damage</c> before <b>flipping into the air.</c>"
+            description = "<y>Stun</c> the first enemy hit and <b>dash</c> toward them dealing <y>500% damage</c> before <b>flipping into the air.</c>"
         },
         grapplerV = {
             name = "<g>Cosmetic Flip</c>",
