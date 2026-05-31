@@ -31,9 +31,10 @@ local sGrapplerShoot = {
 }
 
 local sHitSpark         = Sprite.new("sHitSpark",           path.combine(SPRITE_PATH, "hit_spark.png"),     6, 16, 16)
-local sGrapplerSkills   = Sprite.new("sGrapplerSkills",     path.combine(SPRITE_PATH, "skills.png"),        5)
+local sGrapplerSkills   = Sprite.new("sGrapplerSkills",     path.combine(SPRITE_PATH, "skills.png"),        10)
 local sRopeTracer       = Sprite.new("sRopeTracer",         path.combine(SPRITE_PATH, "tracer.png",         1, 16, 16))
 local sHook             = Sprite.new("sHook",               path.combine(SPRITE_PATH, "hook.png",           1, 16, 16))
+local sSelectGrappler   = Sprite.new("sSelectGrappler",     path.combine(SPRITE_PATH, "select.png",         1, 28, 0))
 local lightLineParticle   = Particle.new("sGrapplerLineParticle")
 local particleWispGTracer = Particle.find("WispGTracer")
 -- To Do: add tracer png
@@ -64,9 +65,11 @@ local wGrapplerSounds = {
 --Create the new survivor instance: grappler
 local grappler = Survivor.new("grappler")
 
+grappler.sprite_loadout = sSelectGrappler
 grappler.sprite_idle = sprites.idle
 grappler.sprite_title = sprites.walk
 grappler.namespace = "Grappler"
+grappler.cape_offset = Array.new({0, -8, 0, -5})
 Callback.add(grappler.on_init, function(actor)
 	actor.sprite_idle			= sprites.idle
 	actor.sprite_walk			= sprites.walk
@@ -97,44 +100,69 @@ local primary = grappler:get_skills(0)[1]
 local secondary = grappler:get_skills(1)[1]
 local utility = grappler:get_skills(2)[1]
 local special = grappler:get_skills(3)[1]
+local primaryAir = Skill.new("grapplerPrimaryAerial")
+local secondaryAir = Skill.new("grapplerSecondaryAerial")
+local utilityAir = Skill.new("grapplerUtilityAerial")
+local specialAir = Skill.new("grapplerSpecialAerial")
 
-primary.animation = sGrapplerShoot[1]
-secondary.animation = sGrapplerShoot[4]
-utility.animation = sGrapplerShoot[5]
-special.animation = sGrapplerShoot[6]
+primary.animation = sGrapplerShoot.shoot1_1
+secondary.animation = sGrapplerShoot.shoot2
+utility.animation = sGrapplerShoot.shoot3
+special.animation = sGrapplerShoot.shoot4
+primaryAir.animation = sGrapplerShoot.shoot1b
+secondaryAir.animation = sGrapplerShoot.shoot2 --Reassign sprites for the new aerials
+utilityAir.animation = sGrapplerShoot.shoot3b_1 --Reassign sprites for the new aerials
+specialAir.animation = sGrapplerShoot.shoot4b --Reassign sprites for the new aerials
 
 -- assign a skill icon to each of the abilities
 primary.sprite = sGrapplerSkills
 primary.subimage = 0
 secondary.sprite = sGrapplerSkills
-secondary.subimage = 1
+secondary.subimage = 2
 utility.sprite = sGrapplerSkills
-utility.subimage = 2
+utility.subimage = 4
 special.sprite = sGrapplerSkills
-special.subimage = 3
+special.subimage = 6
+primaryAir.sprite = sGrapplerSkills
+primaryAir.subimage = 1
+secondaryAir.sprite = sGrapplerSkills
+secondaryAir.subimage = 3
+utilityAir.sprite = sGrapplerSkills
+utilityAir.subimage = 5
+specialAir.sprite = sGrapplerSkills
+specialAir.subimage = 7
 
 primary.damage = 1
 primary.cooldown = 25
 primary.is_primary = true
 primary.ignore_aim_direction = false
-local MAX_POGO_CHARGE = 4
-local EXECUTE_THRESHOLD = 0.2
 
 secondary.damage = 0.5
 secondary.cooldown = 2 * 60
-secondary.is_utility = true
 
 utility.damage = 5
 utility.cooldown = 4 * 60
+utility.is_utility = true
 
 special.damage = 3
 special.cooldown = 2 * 60
 
---create objects for the different skills
--- local oGrapplerWhip = Object.new("GrapplerWhip")
--- oGrapplerWhip:set_sprite(sGrapplerWhip)
--- oGrapplerWhip:set_depth(1)
+primaryAir.damage = 1
+primaryAir.cooldown = 35
+primaryAir.is_primary = true
+primaryAir.ignore_aim_direction = false
+local MAX_POGO_CHARGE = 4
+local EXECUTE_THRESHOLD = 0.2
 
+secondaryAir.damage = 0.5
+secondaryAir.cooldown = 60 * 4
+
+utilityAir.damage = 5
+utilityAir.cooldown = 60 * 3
+utilityAir.is_utility = true
+
+specialAir.damage = 3
+specialAir.cooldown = 60 * 5
 
 -- create states that the actor can "be in"
 local statePrimary = ActorState.new(primary.identifier)
@@ -142,6 +170,42 @@ statePrimary.activity_flags = ActorState.ActivityFlag.ALLOW_ROPE_CANCEL
 local stateSecondary = ActorState.new(secondary.identifier)
 local stateUtility = ActorState.new(utility.identifier)
 local stateSpecial = ActorState.new(special.identifier)
+local statePrimaryAir = ActorState.new(primaryAir.identifier)
+local stateSecondaryAir = ActorState.new(secondaryAir.identifier)
+local stateUtilityAir = ActorState.new(utilityAir.identifier)
+local stateUtilityAir = ActorState.new(specialAir.identifier)
+
+Callback.add(primary.on_step, function(actor, skill, slot)
+    if Util.bool(actor.free) then
+        skill.subimage = 1
+    else
+        skill.subimage = 0
+    end
+end)
+
+Callback.add(secondary.on_step, function(actor, skill, slot)
+    if Util.bool(actor.free) then
+        skill.subimage = 3
+    else
+        skill.subimage = 2
+    end
+end)
+
+Callback.add(utility.on_step, function(actor, skill, slot)
+    if Util.bool(actor.free) then
+        skill.subimage = 5
+    else
+        skill.subimage = 4
+    end
+end)
+
+Callback.add(special.on_step, function(actor, skill, slot)
+    if Util.bool(actor.free) then
+        skill.subimage = 7
+    else
+        skill.subimage = 6
+    end
+end)
 
 -- set grappler's state to the ability that is activated
 Callback.add(primary.on_activate, function(actor, skill, slot)
@@ -257,7 +321,7 @@ Callback.add(Callback.ON_KILL_PROC, function(target, attacker)
         if attacker.pogo_charges < MAX_POGO_CHARGE then
             attacker.pogo_charges = attacker.pogo_charges + 1
             if attacker.pogo_charges == MAX_POGO_CHARGE then
-                wGrapplerSounds.fullStockAlt1:play(attacker.x, attacker.y, 0.9, math.random() * 0.1 + 0.7)
+                wGrapplerSounds.fullStockAlt1:play(attacker.x, attacker.y, 0.9, math.random() * 0.1 + 0.5)
             end
         end
     end
