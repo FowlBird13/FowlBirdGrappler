@@ -80,6 +80,7 @@ Callback.add(grappler.on_init, function(actor)
 	actor.sprite_death			= sprites.death
 	actor.sprite_decoy			= sprites.decoy
 	actor.sprite_climb_hurt		= sprites.climb_hurt
+    actor.pogo_charges          = 0
 end)
 
 --These base stats and level stats need to be added and balanced. Miner and Drifter would be good to look at
@@ -175,41 +176,23 @@ local stateSecondaryAir = ActorState.new(secondaryAir.identifier)
 local stateUtilityAir = ActorState.new(utilityAir.identifier)
 local stateUtilityAir = ActorState.new(specialAir.identifier)
 
-Callback.add(primary.on_step, function(actor, skill, slot)
-    if Util.bool(actor.free) then
-        skill.subimage = 1
-    else
-        skill.subimage = 0
-    end
-end)
-
-Callback.add(secondary.on_step, function(actor, skill, slot)
-    if Util.bool(actor.free) then
-        skill.subimage = 3
-    else
-        skill.subimage = 2
-    end
-end)
-
-Callback.add(utility.on_step, function(actor, skill, slot)
-    if Util.bool(actor.free) then
-        skill.subimage = 5
-    else
-        skill.subimage = 4
-    end
-end)
-
-Callback.add(special.on_step, function(actor, skill, slot)
-    if Util.bool(actor.free) then
-        skill.subimage = 7
-    else
-        skill.subimage = 6
-    end
-end)
+-- Callback.add(grappler.on_step, function(actor)
+--     if Util.bool(actor.free) then
+--         gm.actor_skill_set(grappler, 0, "grapplerPrimaryAerial")
+--     else
+--         gm.actor_skill_set(grappler, 0, "grapplerZ")
+--     end
+    
+-- end)
 
 -- set grappler's state to the ability that is activated
 Callback.add(primary.on_activate, function(actor, skill, slot)
-	actor:set_state(statePrimary)
+    local player = Player.get_local()
+    if Util.bool(actor.free) and actor.pogo_charges > 0 and player:control("down", 0) then
+	    actor:set_state(statePrimaryAir)
+    else
+        actor:set_state(statePrimary)
+    end
 end)
 Callback.add(secondary.on_activate, function(actor, skill, slot)
 	actor:set_state(stateSecondary)
@@ -232,42 +215,22 @@ Callback.add(statePrimary.on_enter, function(actor, data)
     if not data.attack_anim then
         data.attack_anim = 0
     end
-    if actor.pogo_charges == nil then
-        actor.pogo_charges = 0
-    end
-
-    local player = Player.get_local()
-    data.perform_pogo = false
-    if Util.bool(actor.free) and actor.pogo_charges > 0 and player:control("down", 0) then
-        data.perform_pogo = true
-    end
-
-
-    if data.perform_pogo then
-        actor.sprite_index = sGrapplerShoot.shoot1b
+    if data.attack_anim == 1 then
+        actor.sprite_index = sGrapplerShoot.shoot1_2
+        data.attack_anim = 2
+        primary.override_strafe_direction = true
+        primary.ignore_aim_direction = true
+    elseif data.attack_anim == 2 then
+        actor.sprite_index = sGrapplerShoot.shoot1_3
+        data.attack_anim = 0
+        primary.ignore_aim_direction = false
+        primary.override_strafe_direction = false
+    elseif data.attack_anim == 0 then
+        actor.sprite_index = sGrapplerShoot.shoot1_1
         data.attack_anim = 1
         primary.ignore_aim_direction = false
         primary.override_strafe_direction = false
-    else
-        if data.attack_anim == 1 then
-            actor.sprite_index = sGrapplerShoot.shoot1_2
-            data.attack_anim = 2
-            primary.override_strafe_direction = true
-            primary.ignore_aim_direction = true
-        elseif data.attack_anim == 2 then
-            actor.sprite_index = sGrapplerShoot.shoot1_3
-            data.attack_anim = 0
-            primary.ignore_aim_direction = false
-            primary.override_strafe_direction = false
-        elseif data.attack_anim == 0 then
-            actor.sprite_index = sGrapplerShoot.shoot1_1
-            data.attack_anim = 1
-            primary.ignore_aim_direction = false
-            primary.override_strafe_direction = false
-        end
     end
-    
-    
 
 end)
 
@@ -313,6 +276,29 @@ Callback.add(statePrimary.on_exit, function(actor, data)
         local primary_skill = actor:get_active_skill(Skill.Slot.PRIMARY)
         primary_skill:override_cooldown(30)
     end
+end)
+
+--Primary Air Skill
+Callback.add(statePrimaryAir.on_enter, function(actor, data)
+    actor.image_index = 0
+    data.fired = 0
+    actor.sprite_index = sGrapplerShoot.shoot1b
+end)
+
+Callback.add(statePrimaryAir.on_step, function(actor, data)
+    actor:skill_util_fix_hspeed()
+    actor:actor_animation_set(actor.sprite_index, 0.3)
+
+    if actor.image_index >= 1 and data.fired == 0 then
+        data.fired = 1
+        local damage = actor:skill_get_damage(primary)
+        local attack_info = actor:fire_explosion(actor.x + actor.image_xscale*30, actor.y+32, 120, 120, damage, nil, sHitSpark).attack_info
+        attack_info.is_pogo = true
+        attack_info.attacker = actor
+        actor.pogo_charges = actor.pogo_charges - 1
+    end
+
+    actor:skill_util_exit_state_on_anim_end()
 end)
 
 Callback.add(Callback.ON_KILL_PROC, function(target, attacker)
