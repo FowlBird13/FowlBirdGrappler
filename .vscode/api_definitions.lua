@@ -21,3 +21,12 @@
 
 ---@class Tracer
 ---@field new fun(id: string): any
+
+---@class Skill
+
+---@class Particle
+
+---@class Array
+
+---@class ActorState
+---@field new fun(id: string): any

@@ -24,9 +24,9 @@ local sGrapplerShoot = {
     shoot2              = Sprite.new("sGrapplerShoot2",     path.combine(SPRITE_PATH, "shoot2.png"),        10, 16, 16),
     shoot2b             = Sprite.new("sGrapplerShoot2b",    path.combine(SPRITE_PATH, "shoot2b.png"),       18, 160, 16),
     shoot3              = Sprite.new("sGrapplerShoot3_1",   path.combine(SPRITE_PATH, "shoot3_1.png"),      1, 16, 16),
-    shoot3b_1           = Sprite.new("sGrapplerShoot3b_1",  path.combine(SPRITE_PATH, "shoot3b_1.png"),     1, 16, 16),
-    shoot3b_2           = Sprite.new("sGrapplerShoot3b_2",  path.combine(SPRITE_PATH, "shoot3b_2.png"),     1, 16, 16),
-    shoot4b             = Sprite.new("sGrapplerShoot4",     path.combine(SPRITE_PATH, "shoot4.png"),        1, 0, 0),
+    shoot3b_1           = Sprite.new("sGrapplerShoot3b_1",  path.combine(SPRITE_PATH, "shoot3_1.png"),     1, 16, 16),
+    shoot3b_2           = Sprite.new("sGrapplerShoot3b_2",  path.combine(SPRITE_PATH, "shoot3_old.png"),     1, 16, 16),
+    shoot4b             = Sprite.new("sGrapplerShoot4",     path.combine(SPRITE_PATH, "shoot4b.png"),        9, 32, 26),
     shoot4              = Sprite.new("sGrapplerShoot4b",    path.combine(SPRITE_PATH, "cosmeticFlip.png"),  6, 16, 16)
     
 }
@@ -471,16 +471,23 @@ Callback.add(objTether.on_step, function(self)
     local y2 = self.victim_y
     local dist = Math.distance(x1, 0, x2, 0)
     local dir = Math.direction(x1, y1, x2, y2)
-    local facing = math.sin(x1-x2)
+    local facing = Math.sign(x1-x2)
     local damage = lead:skill_get_damage(utility)
+    local speed = 50
+    local above = Math.sign(y1-y2)
     
+    print(facing)
     if self.stall_timer > 0 then
         self.stall_timer = self.stall_timer - 1
         lead.x = self.lead_x
         lead.y = self.lead_y
-    elseif dist > 8 then
-        lead.x = x2
-        lead.y = y2
+    elseif math.abs(lead.x - x2) > speed or math.abs(lead.y - y2) > speed then
+        if  math.abs(lead.x - x2) > speed then
+            lead.x = lead.x - speed * facing
+        end
+        if math.abs(lead.y - y2) > speed  then
+            lead.y = lead.y - speed * above  
+        end
     else
         lead.pGravity1 = 0.5
         lead.pHspeed = -lead.image_xscale * 3
@@ -489,7 +496,6 @@ Callback.add(objTether.on_step, function(self)
         self:destroy()
     end
 
-    
 
 end)
 
@@ -562,7 +568,7 @@ end)
 
 Callback.add(stateUtility.on_step, function(actor, data)
     actor:skill_util_fix_hspeed()
-    actor:actor_animation_set(sGrapplerShoot.shoot3b_1, 1)
+    actor:actor_animation_set(sGrapplerShoot.shoot3b_1, 0.1)
     if actor.image_index >= 0 and data.fired == 0 then
         data.fired = 1
 
@@ -608,25 +614,40 @@ end)
 Callback.add(stateSpecial.on_enter, function(actor, data)
     actor.image_index = 0
     data.fired = 0
-    actor.image_index = 0
-    if Util.bool(actor.free) then
-        actor.sprite_index = sGrapplerShoot.shoot4
-    else
-        actor.sprite_index = sGrapplerShoot.shoot4
-    end
+    actor.sprite_index = sGrapplerShoot.shoot4
 end)
 
 Callback.add(stateSpecial.on_step, function(actor, data)
     actor:actor_animation_set(actor.sprite_index, 0.3, false)
     actor:skill_util_fix_hspeed()
-    if data.fired < 1  and not Util.bool(actor.free) then
-        actor.invincible = math.max(actor.invincible, 3)
-        actor.pHspeed = actor.image_xscale * -4 * actor.pHmax
+
+    if actor.image_index > 0 and data.fired < 1 then
+        actor.invincible = math.max(actor.invincible, 30)
+        actor.pHspeed = actor.image_xscale * -3 * actor.pHmax
+        actor.pVspeed = actor.pVmax * -2
         data.fired = 1
         wGrapplerSounds.backstep:play(actor.x, actor.y, 0.9 + math.random() * 0.1, 0.9)
-    elseif data.fired < 1 and not Util.bool(actor.free) then
-        -- Wouldn't you like to know what goes in this block
-        wGrapplerSounds.backstep:play(actor.x, actor.y, 0.9 + math.random() * 0.1, 0.9)
+    end
+
+    actor:skill_util_exit_state_on_anim_end()
+end)
+
+--Special Air Skill
+Callback.add(stateSpecialAir.on_enter, function(actor, data)
+    data.fired = 0
+    actor.image_index = 0
+    actor.sprite_index = sGrapplerShoot.shoot4b
+end)
+
+Callback.add(stateSpecialAir.on_step, function(actor, data)
+    actor:skill_util_fix_hspeed()
+    actor:actor_animation_set(actor.sprite_index, 0.2, false)
+
+    if data.fired < 1 and actor.image_index > 3 then
+        local dir = actor:skill_util_facing_direction()
+
+        local attack_info
+        -- attack_info = actor:fire_bullet()
     end
 
     actor:skill_util_exit_state_on_anim_end()
