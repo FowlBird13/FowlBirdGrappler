@@ -22,11 +22,12 @@ local sGrapplerShoot = {
     shoot1_3            = Sprite.new("sGrapplerShoot1_3",   path.combine(SPRITE_PATH, "shoot1_3.png"),      5, 46, 50),
     shoot1b             = Sprite.new("sGrapplerShoot1b",    path.combine(SPRITE_PATH, "shoot1b.png"),       5, 7, 7),
     shoot2              = Sprite.new("sGrapplerShoot2",     path.combine(SPRITE_PATH, "shoot2.png"),        10, 16, 16),
+    shoot2b             = Sprite.new("sGrapplerShoot2b",    path.combine(SPRITE_PATH, "shoot2b.png"),       18, 160, 16),
     shoot3              = Sprite.new("sGrapplerShoot3_1",   path.combine(SPRITE_PATH, "shoot3_1.png"),      1, 16, 16),
     shoot3b_1           = Sprite.new("sGrapplerShoot3b_1",  path.combine(SPRITE_PATH, "shoot3b_1.png"),     1, 16, 16),
     shoot3b_2           = Sprite.new("sGrapplerShoot3b_2",  path.combine(SPRITE_PATH, "shoot3b_2.png"),     1, 16, 16),
-    shoot4b              = Sprite.new("sGrapplerShoot4",     path.combine(SPRITE_PATH, "shoot4.png"),        1, 0, 0),
-    shoot4             = Sprite.new("sGrapplerShoot4b",    path.combine(SPRITE_PATH, "cosmeticFlip.png"),  6, 16, 16),
+    shoot4b             = Sprite.new("sGrapplerShoot4",     path.combine(SPRITE_PATH, "shoot4.png"),        1, 0, 0),
+    shoot4              = Sprite.new("sGrapplerShoot4b",    path.combine(SPRITE_PATH, "cosmeticFlip.png"),  6, 16, 16)
     
 }
 
@@ -58,7 +59,8 @@ local wGrapplerSounds = {
     fullStockAlt1   = Sound.find("Jewel"),
     fullStockAlt2   = Sound.find("Medallion"),
     fullStockAlt3   = Sound.find("Mercenary_Parry_Ready"),
-    tetherWhiff     = Sound.find("Mercenary_EviscerateWhiff")
+    tetherWhiff     = Sound.find("Mercenary_EviscerateWhiff"),
+    fullyCharged    = Sound.find("BanditShoot4_1")
 }
 
 
@@ -174,7 +176,7 @@ local stateSpecial = ActorState.new(special.identifier)
 local statePrimaryAir = ActorState.new(primaryAir.identifier)
 local stateSecondaryAir = ActorState.new(secondaryAir.identifier)
 local stateUtilityAir = ActorState.new(utilityAir.identifier)
-local stateUtilityAir = ActorState.new(specialAir.identifier)
+local stateSpecialAir = ActorState.new(specialAir.identifier)
 
 -- Callback.add(grappler.on_step, function(actor)
 --     if Util.bool(actor.free) then
@@ -195,13 +197,28 @@ Callback.add(primary.on_activate, function(actor, skill, slot)
     end
 end)
 Callback.add(secondary.on_activate, function(actor, skill, slot)
-	actor:set_state(stateSecondary)
+	local player = Player.get_local()
+    if Util.bool(actor.free) and player:control("down", 0) then
+	    actor:set_state(stateSecondaryAir)
+    else
+        actor:set_state(stateSecondary)
+    end
 end)
 Callback.add(utility.on_activate, function(actor, skill, slot)
-	actor:set_state(stateUtility)
+	local player = Player.get_local()
+    if Util.bool(actor.free) and player:control("down", 0) then
+	    actor:set_state(stateUtilityAir)
+    else
+        actor:set_state(stateUtility)
+    end
 end)
 Callback.add(special.on_activate, function(actor, skill, slot)
-	actor:set_state(stateSpecial)
+	local player = Player.get_local()
+    if Util.bool(actor.free) and player:control("down", 0) then
+	    actor:set_state(stateSpecialAir)
+    else
+        actor:set_state(stateSpecial)
+    end
 end)
 
 --Perform the skills 
@@ -369,6 +386,62 @@ Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
             local force = distance/24
 
             target:apply_knockback(-direction, 20, force, 4)
+        end
+    end
+end)
+
+--Secondary Air skill
+Callback.add(stateSecondaryAir.on_enter, function(actor, data)
+    actor.image_index = 0
+    data.fired = 0
+    data.charged = true
+    data.freeze_x = actor.x
+    data.freeze_y = actor.y
+end)
+
+Callback.add(stateSecondaryAir.on_step, function(actor, data)
+    actor:skill_util_fix_hspeed()
+    actor:actor_animation_set(sGrapplerShoot.shoot2b, 0.3, false)
+    actor.x = data.freeze_x
+    actor.y = data.freeze_y
+    actor.free = false
+    
+    local release = not Util.bool(actor.x_skill)
+
+    if release and data.charged and actor.image_index <= 7 then
+        data.charged = false
+        actor.image_index = 8
+    end
+
+    if actor.image_index > 14 and data.fired == 0 then
+        if data.charged then
+            wGrapplerSounds.fullyCharged:play(actor.x, actor.y, 0.9, math.random() * 0.05 + 0.5)
+        end
+        local damage = actor:skill_get_damage(secondary)
+        data.fired = true
+        local attack_info = actor:fire_explosion(actor.x + actor.image_xscale * 1, actor.y + 64, 320, 120, damage, nil, sHitSpark).attack_info
+        attack_info.__is_secondary_aerial = true
+        attack_info.__charged_secondary_aerial = data.charged
+    end
+
+    actor:skill_util_exit_state_on_anim_end()
+end)
+
+Callback.add(stateSecondaryAir.on_exit, function(actor, data)
+    actor.free = true
+    actor.pVspeed = 0
+end)
+
+Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
+    local attack_info = hit_info.attack_info
+    if attack_info.__is_secondary_aerial then
+        local attacker = hit_info.inflictor
+        local victim = hit_info.target
+        if attack_info.__charged_secondary_aerial then
+            victim.x = attacker.x - attacker.image_xscale * 24
+            victim.y = attacker.y + attacker.image_xscale * 24
+        else
+            victim.pVspeed = -4 * victim.pHmax
         end
     end
 end)
