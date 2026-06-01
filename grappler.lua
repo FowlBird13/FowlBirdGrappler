@@ -391,6 +391,53 @@ Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
 end)
 
 --Secondary Air skill
+local objScoopTether = Object.new("GrapplerScoop")
+objScoopTether:set_depth(-280)
+
+Callback.add(objScoopTether.on_create, function(self)
+    self.target = -4
+    self.x1 = "not a coordinate"
+    self.y1 = "not a coordinate"
+    self.parent = -5
+end)
+
+Callback.add(objScoopTether.on_step, function(self)
+    if not Instance.exists(self.parent) or not Instance.exists(self.target) then self:destroy() return end --I assume this destroys the tether if the player dies (I stole it from Executioner)
+    local target = self.target
+    local speed = self.speed
+    local x1 = self.x1
+    local y1 = self.y1
+    local facing = Math.sign(target.x-x1)
+    local above = Math.sign(target.y-y1)
+
+
+    if math.abs(target.x - x1) > speed or math.abs(target.y - y1) > speed then
+        if  math.abs(target.x - x1) > speed then
+            target.x = target.x - speed * facing
+        end
+        if math.abs(target.y - y1) > speed  then
+            target.y = target.y - speed * above
+        end
+    else
+        self:destroy()
+        target.pVspeed = -1
+    end
+end)
+
+-- Callback.add(objScoopTether.on_draw, function(self)
+--     local width = 2
+--     local x2 = self.target.x
+--     local y2 = self.target.y
+--     local x1 = self.x1
+--     local y1 = self.y1
+
+--     gm.draw_set_color(Color.from_rgb(255, 0, 0))
+--     gm.draw_set_alpha(1)
+    
+    
+--     gm.draw_line_width(x1, y1, x2, y2, width)
+-- end)
+
 Callback.add(stateSecondaryAir.on_enter, function(actor, data)
     actor.image_index = 0
     data.fired = 0
@@ -437,9 +484,17 @@ Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
     if attack_info.__is_secondary_aerial then
         local attacker = hit_info.inflictor
         local victim = hit_info.target
-        if attack_info.__charged_secondary_aerial then
-            victim.x = attacker.x - attacker.image_xscale * 24
-            victim.y = attacker.y + attacker.image_xscale * 24
+        if attack_info.__charged_secondary_aerial and not victim:is_climbing() then
+            local direction = attacker:skill_util_facing_direction()
+            local side = 1
+            if direction ~= 0 then
+                side = -1
+            end
+            local pullForce = objScoopTether:create()
+            pullForce.target = hit_info.target
+            pullForce.speed = 15
+            pullForce.x1 = attacker.x + 80*side
+            pullForce.y1 = attacker.y
         else
             victim.pVspeed = -4 * victim.pHmax
         end
@@ -476,7 +531,6 @@ Callback.add(objTether.on_step, function(self)
     local speed = 50
     local above = Math.sign(y1-y2)
     
-    print(facing)
     if self.stall_timer > 0 then
         self.stall_timer = self.stall_timer - 1
         lead.x = self.lead_x
@@ -608,6 +662,49 @@ Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
         end
     end
 
+end)
+
+--Utility Air Skill
+Callback.add(stateUtilityAir.on_enter, function(actor, data)
+    data.fired = 0
+    actor.image_index = 0
+    actor.sprite_index = sGrapplerShoot.shoot4b
+    data.x1 = actor.x
+    data.y1 = actor.y
+end)
+
+Callback.add(stateUtilityAir.on_step, function(actor, data)
+    actor:skill_util_fix_hspeed()
+    actor:actor_animation_set(actor.sprite_index, 0.2, false)
+    if actor.image_index <= 3 then
+        actor.x = data.x1
+        actor.y = data.y1
+    end
+
+    if data.fired < 1 and actor.image_index > 3 then
+        data.fired = 1
+        local dir = 225
+        if 0 == actor:skill_util_facing_direction() then
+            dir = -45
+        end
+
+        local attack_info
+        attack_info = actor:fire_bullet(actor.x, actor.y, 700, dir, 0, nil, sHook, rope_tracer).attack_info
+        attack_info.__is_down_tether = true
+    end
+
+    actor:skill_util_exit_state_on_anim_end()
+end)
+
+Callback.add(stateUtilityAir.on_exit, function(actor, data)
+    actor.pVspeed = 0
+end)
+
+Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
+    local attack_info = hit_info
+    if attack_info.__is_down_tether then
+        
+    end
 end)
 
 --Special Skill
