@@ -31,6 +31,7 @@ local sGrapplerShoot = {
     
 }
 
+local sGrapplerPogoTracker = Sprite.new("sGrapplerPogoTracker", path.combine(SPRITE_PATH, "pogo_tracker.png"),   5, 7, 7)
 local sHitSpark         = Sprite.new("sHitSpark",           path.combine(SPRITE_PATH, "hit_spark.png"),     6, 16, 16)
 local sGrapplerSkills   = Sprite.new("sGrapplerSkills",     path.combine(SPRITE_PATH, "skills.png"),        10)
 local sRopeTracer       = Sprite.new("sRopeTracer",         path.combine(SPRITE_PATH, "tracer.png",         1, 16, 16))
@@ -72,6 +73,16 @@ grappler.sprite_idle = sprites.idle
 grappler.sprite_title = sprites.walk
 grappler.namespace = "Grappler"
 grappler.cape_offset = Array.new({0, -8, 0, -5})
+
+--The pogo tracker object created whenever Grappler is initiated
+local objPogoTracker = Object.new("GrapplerPogoTracker")
+objPogoTracker:set_sprite(sGrapplerPogoTracker)
+objPogoTracker:set_depth(-280)
+Callback.add(objPogoTracker.on_create, function(self)
+    self.parent = -4 --returns an incorrect value if no parent is set
+    self.image_index = 0
+end)
+
 Callback.add(grappler.on_init, function(actor)
 	actor.sprite_idle			= sprites.idle
 	actor.sprite_walk			= sprites.walk
@@ -82,7 +93,13 @@ Callback.add(grappler.on_init, function(actor)
 	actor.sprite_death			= sprites.death
 	actor.sprite_decoy			= sprites.decoy
 	actor.sprite_climb_hurt		= sprites.climb_hurt
+
+    --local data = Instance.get_data(actor) -- Not sure how to properly use this despite seeing it in every bit of mod code
+
     actor.pogo_charges          = 0
+    actor.pogo_tracker          = objPogoTracker:create()
+    actor.pogo_tracker.parent   = actor
+    actor.primary_combo_timer    = 0 --The max combo is a local variable by the primary skill
 end)
 
 --These base stats and level stats need to be added and balanced. Miner and Drifter would be good to look at
@@ -139,6 +156,7 @@ primary.damage = 1
 primary.cooldown = 25
 primary.is_primary = true
 primary.ignore_aim_direction = false
+local COMBO_TIMER_MAX = 20
 
 secondary.damage = 0.5
 secondary.cooldown = 2 * 60
@@ -224,12 +242,19 @@ end)
 --Perform the skills 
 
 -- Primary Skill
+Callback.add(grappler.on_step, function(actor)
+    -- local data = Instance.get_data(actor)
+    if actor.primary_combo_timer < COMBO_TIMER_MAX then
+        actor.primary_combo_timer = actor.primary_combo_timer + 1
+    end
+end)
+
 Callback.add(statePrimary.on_enter, function(actor, data)
     actor.image_index = 0
     data.fired = 0
-
+    -- local actor_data = Instance.get_data(actor)
     -- cycle through the attack animations of the grounded move
-    if not data.attack_anim then
+    if not data.attack_anim or actor.primary_combo_timer >= COMBO_TIMER_MAX then
         data.attack_anim = 0
     end
     if data.attack_anim == 1 then
@@ -248,14 +273,13 @@ Callback.add(statePrimary.on_enter, function(actor, data)
         primary.ignore_aim_direction = false
         primary.override_strafe_direction = false
     end
-
 end)
 
 Callback.add(statePrimary.on_step, function(actor, data)
 
     actor:skill_util_fix_hspeed()
     actor:actor_animation_set(actor.sprite_index, 0.3)
-    local player = Player.get_local()
+    -- local player = Player.get_local()
 
     if data.perform_pogo then
         if actor.image_index >= 1 and data.fired == 0 then
@@ -293,6 +317,20 @@ Callback.add(statePrimary.on_exit, function(actor, data)
         local primary_skill = actor:get_active_skill(Skill.Slot.PRIMARY)
         primary_skill:override_cooldown(30)
     end
+end)
+
+Callback.add(objPogoTracker.on_draw, function(inst)
+    if not Instance.exists(inst.parent) then
+		inst:destroy()
+		return
+	end
+    local actor = inst.parent
+    inst.image_index = actor.pogo_charges
+    inst:draw_sprite(sGrapplerPogoTracker, actor.pogo_charges, actor.ghost_x + 24, actor.ghost_y - 24)
+end)
+
+Callback.add(statePrimary.on_exit, function(actor, data)
+    actor.primary_combo_timer = 0
 end)
 
 --Primary Air Skill
