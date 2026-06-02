@@ -23,8 +23,8 @@ local sGrapplerShoot = {
     shoot1b             = Sprite.new("sGrapplerShoot1b",    path.combine(SPRITE_PATH, "shoot1b.png"),       5, 7, 7),
     shoot2              = Sprite.new("sGrapplerShoot2",     path.combine(SPRITE_PATH, "shoot2.png"),        18, 16, 16),
     shoot2b             = Sprite.new("sGrapplerShoot2b",    path.combine(SPRITE_PATH, "shoot2b.png"),       18, 160, 16),
-    shoot3              = Sprite.new("sGrapplerShoot3_1",   path.combine(SPRITE_PATH, "shoot3_1.png"),      1, 16, 16),
-    shoot3b_1           = Sprite.new("sGrapplerShoot3b_1",  path.combine(SPRITE_PATH, "shoot3_1.png"),     1, 16, 16),
+    shoot3              = Sprite.new("sGrapplerShoot3_1",   path.combine(SPRITE_PATH, "shoot3_1.png"),      7, 16, 16),
+    shoot3b_1           = Sprite.new("sGrapplerShoot3b_1",  path.combine(SPRITE_PATH, "shoot3_1.png"),     7, 16, 16),
     shoot3b_2           = Sprite.new("sGrapplerShoot3b_2",  path.combine(SPRITE_PATH, "shoot3_old.png"),     1, 16, 16),
     shoot4b             = Sprite.new("sGrapplerShoot4",     path.combine(SPRITE_PATH, "shoot4b.png"),        9, 32, 16),
     shoot4              = Sprite.new("sGrapplerShoot4b",    path.combine(SPRITE_PATH, "cosmeticFlip.png"),  6, 16, 16)
@@ -243,7 +243,7 @@ end)
 
 -- Primary Skill
 Callback.add(grappler.on_step, function(actor)
-    -- local data = Instance.get_data(actor)
+    -- This resets the primary attack if it hasn't been used within a short time
     if actor.primary_combo_timer < COMBO_TIMER_MAX then
         actor.primary_combo_timer = actor.primary_combo_timer + 1
     end
@@ -252,8 +252,9 @@ end)
 Callback.add(statePrimary.on_enter, function(actor, data)
     actor.image_index = 0
     data.fired = 0
-    -- local actor_data = Instance.get_data(actor)
+
     -- cycle through the attack animations of the grounded move
+    -- reset the animation order if it hasn't been used within a certain time
     if not data.attack_anim or actor.primary_combo_timer >= COMBO_TIMER_MAX then
         data.attack_anim = 0
     end
@@ -326,7 +327,7 @@ Callback.add(objPogoTracker.on_draw, function(inst)
 	end
     local actor = inst.parent
     inst.image_index = actor.pogo_charges
-    inst:draw_sprite(sGrapplerPogoTracker, actor.pogo_charges, actor.ghost_x + 24, actor.ghost_y - 24)
+    inst:draw_sprite(sGrapplerPogoTracker, actor.pogo_charges, actor.ghost_x, actor.ghost_y + 20)
 end)
 
 Callback.add(statePrimary.on_exit, function(actor, data)
@@ -392,6 +393,7 @@ Callback.add(stateSecondary.on_enter, function(actor, data)
     actor.image_index = 0
     data.fired = 0
     data.charged = true
+    wGrapplerSounds.fullyCharged:play(actor.x, actor.y, 0.9, math.random() * 0.05 + 0.5)
 end)
 
 Callback.add(stateSecondary.on_step, function (actor, data)
@@ -410,14 +412,10 @@ Callback.add(stateSecondary.on_step, function (actor, data)
         actor.image_index = 8
     end
 
-    if actor.image_index == 8 and data.charged then
-        wGrapplerSounds.fullyCharged:play(actor.x, actor.y, 0.9, math.random() * 0.05 + 0.5)
-    end
-
     if actor.image_index >= 12 and data.fired == 0 then
         data.fired = 1
         local damage = actor:skill_get_damage(secondary)
-        local attack_info = actor:fire_explosion(actor.x + actor.image_xscale * 150, actor.y, 320, 40, damage, nil, sHitSpark).attack_info
+        local attack_info = actor:fire_explosion(actor.x + actor.image_xscale * 150, actor.y, 320, 64, damage, nil, sHitSpark).attack_info
         attack_info.__secondary_yoink = 1
         attack_info.__attacker_x = actor.x
         attack_info.__is_charged = data.charged
@@ -525,7 +523,7 @@ Callback.add(stateSecondaryAir.on_step, function(actor, data)
         end
         local damage = actor:skill_get_damage(secondary)
         data.fired = true
-        local attack_info = actor:fire_explosion(actor.x + actor.image_xscale * 1, actor.y + 64, 320, 120, damage, nil, sHitSpark).attack_info
+        local attack_info = actor:fire_explosion(actor.x + actor.image_xscale * 1, actor.y + 76, 320, 140, damage, nil, sHitSpark).attack_info
         attack_info.__is_secondary_aerial = true
         attack_info.__charged_secondary_aerial = data.charged
     end
@@ -629,6 +627,13 @@ Callback.add(objTether.on_draw, function(self)
 
 end)
 
+Callback.add(objTether.on_destroy, function(self)
+    if Instance.exists(self.lead) then
+        local actor = self.lead
+        actor.image_index = 3
+    end
+end)
+
 local rope_tracer = Tracer.new("grapplerMantle")
 rope_tracer.sparks_offset_y = -5
 rope_tracer.show_sparks_if_miss = 1
@@ -677,15 +682,14 @@ end)
 Callback.add(stateUtility.on_enter, function(actor, data)
     actor.image_index = 0
     data.fired = 0
+    data.expire_timer = 0
 end)
 
 Callback.add(stateUtility.on_step, function(actor, data)
     actor:skill_util_fix_hspeed()
-    actor:actor_animation_set(sGrapplerShoot.shoot3b_1, 0.1)
+    actor:actor_animation_set(sGrapplerShoot.shoot3b_1, 0.3)
     if actor.image_index >= 0 and data.fired == 0 then
         data.fired = 1
-
-        local damage = actor:skill_get_damage(utility) -- damage moved to the secondary explosion
         local direction = actor:skill_util_facing_direction()
         -- To Do: add tracer object sprite
         local attack_info
@@ -694,9 +698,19 @@ Callback.add(stateUtility.on_step, function(actor, data)
         attack_info.__attacker = actor
         attack_info.__sideTether = 1
 
-        wGrapplerSounds.tether:play(actor.x, actor.y, 0.9, 0.7)
+        wGrapplerSounds.tether:play(actor.x, actor.y, 0.9, 1.5)
     end
-
+    
+    -- This if statement is used to hold the grappler in their
+    -- dashing animation until the tether is destroyed.
+    if actor.image_index < 2 then
+        actor.image_index = 1
+        data.expire_timer = data.expire_timer + 1
+    end
+    
+    if data.expire_timer > 40 then
+        actor.image_index = 6
+    end
 
     actor:skill_util_exit_state_on_anim_end()
 end)
