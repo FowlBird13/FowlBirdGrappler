@@ -21,7 +21,7 @@ local sGrapplerShoot = {
     shoot1_2            = Sprite.new("sGrapplerShoot1_2",   path.combine(SPRITE_PATH, "shoot1_2.png"),      5, 12, 50),
     shoot1_3            = Sprite.new("sGrapplerShoot1_3",   path.combine(SPRITE_PATH, "shoot1_3.png"),      5, 46, 50),
     shoot1b             = Sprite.new("sGrapplerShoot1b",    path.combine(SPRITE_PATH, "shoot1b.png"),       5, 7, 7),
-    shoot2              = Sprite.new("sGrapplerShoot2",     path.combine(SPRITE_PATH, "shoot2.png"),        10, 16, 16),
+    shoot2              = Sprite.new("sGrapplerShoot2",     path.combine(SPRITE_PATH, "shoot2.png"),        18, 16, 16),
     shoot2b             = Sprite.new("sGrapplerShoot2b",    path.combine(SPRITE_PATH, "shoot2b.png"),       18, 160, 16),
     shoot3              = Sprite.new("sGrapplerShoot3_1",   path.combine(SPRITE_PATH, "shoot3_1.png"),      1, 16, 16),
     shoot3b_1           = Sprite.new("sGrapplerShoot3b_1",  path.combine(SPRITE_PATH, "shoot3_1.png"),     1, 16, 16),
@@ -353,23 +353,39 @@ end)
 Callback.add(stateSecondary.on_enter, function(actor, data)
     actor.image_index = 0
     data.fired = 0
+    data.charged = true
 end)
 
 Callback.add(stateSecondary.on_step, function (actor, data)
     actor:skill_util_fix_hspeed()
     actor:actor_animation_set(sGrapplerShoot.shoot2, 0.4)
-
     
-    if actor.image_index >= 6 and data.fired == 0 then
+    if actor.image_index < 8 then
+        local secondary_skill = actor:get_active_skill(Skill.Slot.SECONDARY)
+        secondary_skill:freeze_cooldown()
+    end
+
+    local release = not Util.bool(actor.x_skill)
+
+    if release and data.charged and actor.image_index <= 7 then
+        data.charged = false
+        actor.image_index = 8
+    end
+
+    if actor.image_index == 8 and data.charged then
+        wGrapplerSounds.fullyCharged:play(actor.x, actor.y, 0.9, math.random() * 0.05 + 0.5)
+    end
+
+    if actor.image_index >= 12 and data.fired == 0 then
         data.fired = 1
         local damage = actor:skill_get_damage(secondary)
         local attack_info = actor:fire_explosion(actor.x + actor.image_xscale * 150, actor.y, 320, 40, damage, nil, sHitSpark).attack_info
         attack_info.__secondary_yoink = 1
         attack_info.__attacker_x = actor.x
+        attack_info.__is_charged = data.charged
 
         wGrapplerSounds.swish:play(actor.x, actor.y, 0.9, 0.9)
     end
-    
     actor:skill_util_exit_state_on_anim_end()
 end)
 
@@ -385,7 +401,12 @@ Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
 
             local force = distance/24
 
-            target:apply_knockback(-direction, 20, force, 4)
+            local duration = 20
+            if hit_info.attack_info.__is_charged then
+                duration = 40
+            end
+
+            target:apply_knockback(-direction, duration, force, 4)
         end
     end
 end)
@@ -476,7 +497,7 @@ end)
 
 Callback.add(stateSecondaryAir.on_exit, function(actor, data)
     actor.free = true
-    actor.pVspeed = 0
+    actor.pVspeed = -5
 end)
 
 Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
@@ -718,7 +739,7 @@ Callback.add(stateSpecial.on_step, function(actor, data)
     actor:actor_animation_set(actor.sprite_index, 0.3, false)
     actor:skill_util_fix_hspeed()
 
-    if actor.image_index > 0 and data.fired < 1 then
+    if actor.image_index > 1 and data.fired < 1 then
         actor.invincible = math.max(actor.invincible, 30)
         actor.pHspeed = actor.image_xscale * -3 * actor.pHmax
         actor.pVspeed = actor.pVmax * -2
