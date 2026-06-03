@@ -23,14 +23,15 @@ local sGrapplerShoot = {
     shoot1b             = Sprite.new("sGrapplerShoot1b",    path.combine(SPRITE_PATH, "shoot1b.png"),       5, 7, 7),
     shoot2              = Sprite.new("sGrapplerShoot2",     path.combine(SPRITE_PATH, "shoot2.png"),        18, 16, 16),
     shoot2b             = Sprite.new("sGrapplerShoot2b",    path.combine(SPRITE_PATH, "shoot2b.png"),       18, 160, 16),
-    shoot3              = Sprite.new("sGrapplerShoot3_1",   path.combine(SPRITE_PATH, "shoot3_1.png"),      7, 16, 16),
-    shoot3b_1           = Sprite.new("sGrapplerShoot3b_1",  path.combine(SPRITE_PATH, "shoot3_1.png"),     7, 16, 16),
-    shoot3b_2           = Sprite.new("sGrapplerShoot3b_2",  path.combine(SPRITE_PATH, "shoot3_old.png"),     1, 16, 16),
-    shoot4b             = Sprite.new("sGrapplerShoot4",     path.combine(SPRITE_PATH, "shoot4b.png"),        9, 32, 16),
+    shoot3              = Sprite.new("sGrapplerShoot3",   path.combine(SPRITE_PATH, "shoot3_1.png"),      7, 16, 16),
+    shoot3b             = Sprite.new("sGrapplerShoot3b",  path.combine(SPRITE_PATH, "shoot3b.png"),     9, 16, 16),
+    shoot3b_2           = Sprite.new("sGrapplerShoot3_old",  path.combine(SPRITE_PATH, "shoot3_old.png"),     1, 16, 16),
+    shoot4b             = Sprite.new("sGrapplerShoot4",     path.combine(SPRITE_PATH, "shoot4b_test.png"),        6, 16, 16),
     shoot4              = Sprite.new("sGrapplerShoot4b",    path.combine(SPRITE_PATH, "cosmeticFlip.png"),  6, 16, 16)
     
 }
 
+local sGrapplerTornado = Sprite.new("sGrapplerTornado", path.combine(SPRITE_PATH, "tornado.png"),   3, 16, 16)
 local sGrapplerPogoTracker = Sprite.new("sGrapplerPogoTracker", path.combine(SPRITE_PATH, "pogo_tracker.png"),   5, 7, 7)
 local sHitSpark         = Sprite.new("sHitSpark",           path.combine(SPRITE_PATH, "hit_spark.png"),     6, 16, 16)
 local sGrapplerSkills   = Sprite.new("sGrapplerSkills",     path.combine(SPRITE_PATH, "skills.png"),        10)
@@ -687,7 +688,7 @@ end)
 
 Callback.add(stateUtility.on_step, function(actor, data)
     actor:skill_util_fix_hspeed()
-    actor:actor_animation_set(sGrapplerShoot.shoot3b_1, 0.3)
+    actor:actor_animation_set(sGrapplerShoot.shoot3, 0.3)
     if actor.image_index >= 0 and data.fired == 0 then
         data.fired = 1
         local direction = actor:skill_util_facing_direction()
@@ -741,7 +742,7 @@ end)
 Callback.add(stateUtilityAir.on_enter, function(actor, data)
     data.fired = 0
     actor.image_index = 0
-    actor.sprite_index = sGrapplerShoot.shoot4b
+    actor.sprite_index = sGrapplerShoot.shoot3b
     data.x1 = actor.x
     data.y1 = actor.y
 end)
@@ -803,22 +804,111 @@ Callback.add(stateSpecial.on_step, function(actor, data)
 end)
 
 --Special Air Skill
+local objLink = Object.new("objGrapplerLink")
+objLink:set_depth(-280)
+objLink:set_sprite(sGrapplerTornado)
+
+Callback.add(objLink.on_create, function(self)
+    self.parent = -4
+    self.connection1 = nil
+    self.connection2 = nil
+    self.x1 = nil
+    self.y1 = nil
+    self.ox1 = nil
+    self.oy1 = nil
+    self.x2 = nil
+    self.y2 = nil
+    self.active = false
+    self.image_speed = 0.3
+    self.life_time = 0
+end)
+
+Callback.add(objLink.on_step, function(self)
+    if not Instance.exists(self.parent) then self:destroy() return end 
+    if self.life_time > 600 then
+        self:destroy()
+    else
+        self.life_time = self.life_time + 1
+    end
+
+    self.connection1.x = self.ox1
+    self.connection1.y = self.oy1
+    self.connection2.y = self.x2
+    self.connection2.y = self.y2
+    self.connection1.stun = true
+
+    local speed = 2
+    local facing = Math.sign(self.x1-self.x2)
+
+    if self.active then
+        if  math.abs(self.x1 - self.x2) > speed then
+            self.x1 = self.x1 - speed * facing
+        end
+        if  math.abs(self.y1 - self.y2) > speed then
+            self.y1 = self.y1 - speed * facing
+        end
+        if Math.distance(self.x1, self.y1, self.x2, self.y2) <= speed then
+            self:destroy()
+        end
+    end
+    
+end)
+
+Callback.add(objLink.on_draw, function(self)
+
+    gm.draw_set_color(Color.from_rgb(0, 255, 255))
+    gm.draw_set_alpha(1)
+    gm.draw_line_width(self.x2, self.y2, self.x1, self.y1, 2)
+end)
+
+Callback.add(objLink.on_destroy, function(self)
+    
+end)
+
 Callback.add(stateSpecialAir.on_enter, function(actor, data)
     data.fired = 0
     actor.image_index = 0
     actor.sprite_index = sGrapplerShoot.shoot4b
+    data.freeze_x = actor.x
+    data.freeze_y = actor.y
 end)
 
 Callback.add(stateSpecialAir.on_step, function(actor, data)
     actor:skill_util_fix_hspeed()
     actor:actor_animation_set(actor.sprite_index, 0.2, false)
+    actor.x = data.freeze_x
+    actor.y = data.freeze_y
+    actor.free = false
 
     if data.fired < 1 and actor.image_index > 3 then
-        local dir = actor:skill_util_facing_direction()
-
-        local attack_info
-        -- attack_info = actor:fire_bullet()
+        data.fired = 1
+        --an array table???
+        local previous = actor
+        local actors = actor:get_collisions_circle(gm.constants.pActorCollisionBase, 300)
+        for _, enemy in ipairs(actors) do
+            if Util.bool(enemy.free) then
+                local link = objLink:create()
+                link.parent = actor
+                link.connection1 = previous
+                link.x1 = previous.x
+                link.ox1 = previous.x
+                link.y1 = previous.y
+                link.oy1 = previous.y
+                link.connection2 = enemy
+                link.x2 = enemy.x
+                link.y2 = enemy.y
+                previous = enemy
+                if previous == actor then
+                    link.active = true
+                end
+            end
+        end
     end
 
     actor:skill_util_exit_state_on_anim_end()
+end)
+
+Callback.add(stateSpecialAir.on_exit, function(actor, data)
+    actor.free = true
+    actor.pVspeed = -2
 end)
