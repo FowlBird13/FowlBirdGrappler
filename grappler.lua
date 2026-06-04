@@ -183,7 +183,7 @@ utilityAir.damage = 5
 utilityAir.cooldown = 60 * 3
 utilityAir.is_utility = true
 
-specialAir.damage = 3
+specialAir.damage = 0.5
 specialAir.cooldown = 60 * 5
 
 -- create states that the actor can "be in"
@@ -804,64 +804,89 @@ Callback.add(stateSpecial.on_step, function(actor, data)
 end)
 
 --Special Air Skill
-local objLink = Object.new("objGrapplerLink")
-objLink:set_depth(-280)
-objLink:set_sprite(sGrapplerTornado)
+local objLinks = Object.new("objGrapplerLink")
+objLinks:set_depth(-280)
+objLinks:set_sprite(sGrapplerTornado)
 
-Callback.add(objLink.on_create, function(self)
-    self.parent = -4
-    self.connection1 = nil
-    self.connection2 = nil
-    self.x1 = nil
-    self.y1 = nil
-    self.ox1 = nil
-    self.oy1 = nil
-    self.x2 = nil
-    self.y2 = nil
-    self.active = false
-    self.image_speed = 0.3
-    self.life_time = 0
+Callback.add(objLinks.on_create, function(inst)
+    inst.parent = -4
+
+    local data = Instance.get_data(inst)
+    data.lifetime = 300
+    data.targets = {}
+    data.speed = 1
 end)
 
-Callback.add(objLink.on_step, function(self)
-    if not Instance.exists(self.parent) then self:destroy() return end 
-    if self.life_time > 600 then
-        self:destroy()
-    else
-        self.life_time = self.life_time + 1
+Callback.add(objLinks.on_step, function(inst)
+    if not Instance.exists(inst.parent) then inst:destroy() return end 
+
+    local data = Instance.get_data(inst)
+
+    if #data.targets <= 0 then
+        inst:destroy()
+        return
     end
 
-    self.connection1.x = self.ox1
-    self.connection1.y = self.oy1
-    self.connection2.y = self.x2
-    self.connection2.y = self.y2
-    self.connection1.stun = true
+    if data.lifetime >= 0 then
+        data.lifetime = data.lifetime - 1
+    else
+        inst:destroy()
+        return
+    end
 
-    local speed = 2
-    local facing = Math.sign(self.x1-self.x2)
+    --hold all enemies connected by the links in place
+    for _, target in ipairs(data.targets) do
+        target.enemy.x = target.x
+        target.enemy.y = target.y
+        if Net.Host then
+            target.enemy:apply_knockback(1, 5, 0)
+        end
+    end
 
-    if self.active then
-        if  math.abs(self.x1 - self.x2) > speed then
-            self.x1 = self.x1 - speed * facing
+
+
+    --shorten the first tether until it deletes itself and deals damage to the target
+    local speed = data.speed
+    local x2 = data.targets[1].x
+    local y2 = data.targets[1].y
+    local facing = Math.sign(inst.x - x2)
+    local above = Math.sign(inst.y - y2)
+
+    if math.abs(inst.x - x2) > speed or math.abs(inst.y - y2) > speed then
+        if  math.abs(inst.x - x2) > speed then
+            inst.x = inst.x - speed * facing
         end
-        if  math.abs(self.y1 - self.y2) > speed then
-            self.y1 = self.y1 - speed * facing
+        if math.abs(inst.y - y2) > speed  then
+            inst.y = inst.y - speed * above
         end
-        if Math.distance(self.x1, self.y1, self.x2, self.y2) <= speed then
-            self:destroy()
+    else
+        local damage = inst.parent:skill_get_damage(specialAir)
+        inst.parent:fire_direct(data.targets[1].enemy, damage)
+        table.remove(data.targets, 1)
+    end
+
+end)
+
+Callback.add(objLinks.on_draw, function(inst)
+
+    local data = Instance.get_data(inst)
+
+    gm.draw_set_color(Color.from_rgb(0, 255, 255))
+    gm.draw_set_alpha(1)
+    local previousX = inst.x
+    local previousY = inst.y
+
+    if #data.targets > 0 then
+        for _, target in ipairs(data.targets) do
+            gm.draw_line_width(previousX, previousY, target.x, target.y, 2)
+            previousX = target.x
+            previousY = target.y
         end
     end
     
 end)
 
-Callback.add(objLink.on_draw, function(self)
-
-    gm.draw_set_color(Color.from_rgb(0, 255, 255))
-    gm.draw_set_alpha(1)
-    gm.draw_line_width(self.x2, self.y2, self.x1, self.y1, 2)
-end)
-
-Callback.add(objLink.on_destroy, function(self)
+Callback.add(objLinks.on_destroy, function(inst)
     
 end)
 
@@ -882,25 +907,21 @@ Callback.add(stateSpecialAir.on_step, function(actor, data)
 
     if data.fired < 1 and actor.image_index > 3 then
         data.fired = 1
+        local links = objLinks:create(actor.x, actor.y)
+        links.parent = actor
         --an array table???
-        local previous = actor
         local actors = actor:get_collisions_circle(gm.constants.pActorCollisionBase, 300)
+        local indexCounter = 0
+        local linkData = Instance.get_data(links)
         for _, enemy in ipairs(actors) do
-            if Util.bool(enemy.free) then
-                local link = objLink:create()
-                link.parent = actor
-                link.connection1 = previous
-                link.x1 = previous.x
-                link.ox1 = previous.x
-                link.y1 = previous.y
-                link.oy1 = previous.y
-                link.connection2 = enemy
-                link.x2 = enemy.x
-                link.y2 = enemy.y
-                previous = enemy
-                if previous == actor then
-                    link.active = true
-                end
+            if Util.bool(enemy.free) and enemy.team ~= actor.team then
+
+                table.insert(linkData.targets, {
+                    enemy = enemy,
+                    x = enemy.x,
+                    y = enemy.y
+                })
+                indexCounter = indexCounter + 1
             end
         end
     end
