@@ -24,7 +24,7 @@ local sGrapplerShoot = {
     shoot2              = Sprite.new("sGrapplerShoot2",     path.combine(SPRITE_PATH, "shoot2.png"),        18, 16, 16),
     shoot2b             = Sprite.new("sGrapplerShoot2b",    path.combine(SPRITE_PATH, "shoot2b.png"),       18, 160, 16),
     shoot3              = Sprite.new("sGrapplerShoot3",   path.combine(SPRITE_PATH, "shoot3_1.png"),      7, 16, 16),
-    shoot3b             = Sprite.new("sGrapplerShoot3b",  path.combine(SPRITE_PATH, "shoot3b.png"),     9, 16, 16),
+    shoot3b             = Sprite.new("sGrapplerShoot3b",  path.combine(SPRITE_PATH, "shoot3b.png"),     9, 32, 16),
     shoot3b_2           = Sprite.new("sGrapplerShoot3_old",  path.combine(SPRITE_PATH, "shoot3_old.png"),     1, 16, 16),
     shoot4b             = Sprite.new("sGrapplerShoot4",     path.combine(SPRITE_PATH, "shoot4b_test.png"),        7, 16, 16),
     shoot4              = Sprite.new("sGrapplerShoot4b",    path.combine(SPRITE_PATH, "cosmeticFlip.png"),  6, 16, 16)
@@ -40,6 +40,8 @@ local sHook             = Sprite.new("sHook",               path.combine(SPRITE_
 local sSelectGrappler   = Sprite.new("sSelectGrappler",     path.combine(SPRITE_PATH, "select.png",         1, 28, 0))
 local lightLineParticle   = Particle.new("sGrapplerLineParticle")
 local particleWispGTracer = Particle.find("WispGTracer")
+local sDownHook           = Sprite.new("sDownHook",         path.combine(SPRITE_PATH, "down_hook.png",           1, 4, 0))
+
 -- To Do: add tracer png
 
 local slightLineParticle = Sprite.new("sRopeParticle", path.combine(SPRITE_PATH, "tracer.png",              1, 16, 16))
@@ -62,7 +64,8 @@ local wGrapplerSounds = {
     fullStockAlt2   = Sound.find("Medallion"),
     fullStockAlt3   = Sound.find("Mercenary_Parry_Ready"),
     tetherWhiff     = Sound.find("Mercenary_EviscerateWhiff"),
-    fullyCharged    = Sound.find("BanditShoot4_1")
+    fullyCharged    = Sound.find("BanditShoot4_1"),
+    explosion       = Sound.find("BanditShoot2Explo")
 }
 
 
@@ -688,7 +691,7 @@ Callback.add(stateUtility.on_enter, function(actor, data)
 end)
 
 Callback.add(stateUtility.on_step, function(actor, data)
-    -- actor:skill_util_fix_hspeed()
+    
     actor:actor_animation_set(sGrapplerShoot.shoot3, 0.3)
     if actor.image_index >= 0 and data.fired == 0 then
         data.fired = 1
@@ -740,21 +743,58 @@ Callback.add(Callback.ON_ATTACK_HIT, function(hit_info)
 end)
 
 --Utility Air Skill
+local objDownTether = Object.new("GrapplerDownTether")
+objDownTether:set_depth(-280)
+objDownTether:set_sprite(sDownHook)
+Callback.add(objDownTether.on_create, function(self)
+    self.parent = -4
+    self.lifetime = 60
+    self.destroyLength = 10
+end)
+
+Callback.add(objDownTether.on_step, function(self)
+    if not Instance.exists(self.parent) then self:destroy() return end --I assume this destroys the tether if the player dies (I stole it from Executioner)
+    if Math.distance(self.x, self.y, self.parent.x, self.parent.y) < self.destroyLength then
+        self:destroy()
+    else
+        self.lifetime = self.lifetime - 1
+        if self.lifetime < 0 then
+            self:destroy()
+        end
+    end
+end)
+
+Callback.add(objDownTether.on_draw, function(self)
+    local width = 2
+    gm.draw_set_color(Color.from_rgb(0, 255, 255))
+    gm.draw_set_alpha(1)
+    local facing = Math.sign(self.parent.x-self.x)
+    
+    gm.draw_line_width(self.x, self.y, self.parent.x+14*(-facing), self.parent.y+12, width)
+end)
+
 Callback.add(stateUtilityAir.on_enter, function(actor, data)
     data.fired = 0
     actor.image_index = 0
     actor.sprite_index = sGrapplerShoot.shoot3b
     data.x1 = actor.x
     data.y1 = actor.y
+    data.end_x = nil
+    data.end_y = nil
+    data.lifetime = 60
 end)
 
 Callback.add(stateUtilityAir.on_step, function(actor, data)
     actor:skill_util_fix_hspeed()
     actor:actor_animation_set(actor.sprite_index, 0.2, false)
+    local speed = 50 --speed is up here so it can also be passed to the DownTether object
+
     if actor.image_index <= 3 then
         actor.x = data.x1
         actor.y = data.y1
+        actor.free = false
     end
+
 
     if data.fired < 1 and actor.image_index > 3 then
         data.fired = 1
@@ -763,9 +803,46 @@ Callback.add(stateUtilityAir.on_step, function(actor, data)
             dir = -45
         end
 
-        local attack_info
-        attack_info = actor:fire_bullet(actor.x, actor.y, 700, dir, 0, nil, sHook, rope_tracer).attack_info
-        attack_info.__is_down_tether = true
+        actor:collision_line_advanced(actor.x, actor.y, actor.x + gm.lengthdir_x(1400, dir), actor.y + gm.lengthdir_y(1400, dir), gm.constants.pBlock, true, false)
+        data.end_x = gm.variable_global_get("collision_x")
+        data.end_y = gm.variable_global_get("collision_y")
+        local tether = objDownTether:create()
+        tether.x = data.end_x
+        tether.y = data.end_y
+        tether.parent = actor
+        tether.destroyLength = speed
+    end
+    if data.fired == 1 then
+        local x2 = data.end_x
+        local y2 = data.end_y
+        local damage = actor:skill_get_damage(utility)
+        local dir = Math.direction(actor.x, actor.y, x2, y2)
+        local xVector = Math.dcos(dir) * speed
+        local yVector = Math.dsin(dir) * speed
+
+        local Xcolliding = actor:is_colliding(gm.constants.pBlock, actor.x + xVector, actor.y)
+        local Ycolliding = actor:is_colliding(gm.constants.pBlock, actor.x, actor.y - yVector)
+
+
+        if (math.abs(actor.x - x2) > xVector and not Xcolliding) or (math.abs(actor.y - y2) > yVector and not Ycolliding) then
+            if  math.abs(actor.x - x2) > xVector and not Xcolliding then
+                actor.x = actor.x + xVector
+            end
+            if math.abs(actor.y - y2) > yVector and not Ycolliding then
+                actor.y = actor.y - yVector
+            end
+            actor.image_index = 3
+            actor.free = false
+        else
+            data.fired = 2
+            actor.free = true
+            actor:sound_play(wGrapplerSounds.explosion, 1, 0.75 + math.random() * 0.05)
+        end
+    end
+    if data.lifetime > 0 then
+        data.lifetime = data.lifetime - 1
+    else
+        data.fired = 3
     end
 
     actor:skill_util_exit_state_on_anim_end()
@@ -927,10 +1004,6 @@ Callback.add(objLinks.on_draw, function(inst)
     
 end)
 
-Callback.add(objLinks.on_destroy, function(inst)
-    
-end)
-
 Callback.add(stateSpecialAir.on_enter, function(actor, data)
     data.fired = 0
     actor.image_index = 0
@@ -955,7 +1028,7 @@ Callback.add(stateSpecialAir.on_step, function(actor, data)
         local indexCounter = 0
         local linkData = Instance.get_data(links)
         for _, enemy in ipairs(actors) do
-            if Util.bool(enemy.free) and enemy.team ~= actor.team then
+            if Util.bool(enemy.free) and enemy.team ~= actor.team and not enemy:is_climbing() then
                 table.insert(linkData.targets, {
                     enemy = enemy,
                     x = enemy.x,
