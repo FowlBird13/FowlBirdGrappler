@@ -26,7 +26,7 @@ local sGrapplerShoot = {
     shoot3              = Sprite.new("sGrapplerShoot3",   path.combine(SPRITE_PATH, "shoot3_1.png"),      7, 16, 16),
     shoot3b             = Sprite.new("sGrapplerShoot3b",  path.combine(SPRITE_PATH, "shoot3b.png"),     9, 32, 16),
     shoot3b_2           = Sprite.new("sGrapplerShoot3_old",  path.combine(SPRITE_PATH, "shoot3_old.png"),     1, 16, 16),
-    shoot4b             = Sprite.new("sGrapplerShoot4",     path.combine(SPRITE_PATH, "shoot4b_test.png"),        7, 16, 16),
+    shoot4b             = Sprite.new("sGrapplerShoot4",     path.combine(SPRITE_PATH, "shoot4a.png"),        6, 16, 16),
     shoot4              = Sprite.new("sGrapplerShoot4b",    path.combine(SPRITE_PATH, "cosmeticFlip.png"),  6, 16, 16)
     
 }
@@ -237,10 +237,11 @@ Callback.add(utility.on_activate, function(actor, skill, slot)
 end)
 Callback.add(special.on_activate, function(actor, skill, slot)
 	local player = Player.get_local()
+    --These two states were switched to better gameplay coherence
     if Util.bool(actor.free) and player:control("down", 0) then
-	    actor:set_state(stateSpecialAir)
+	    actor:set_state(stateSpecial)
     else
-        actor:set_state(stateSpecial)
+        actor:set_state(stateSpecialAir)
     end
 end)
 
@@ -782,6 +783,7 @@ Callback.add(stateUtilityAir.on_enter, function(actor, data)
     data.end_x = nil
     data.end_y = nil
     data.lifetime = 60
+    data.skewered_actors = {}
 end)
 
 Callback.add(stateUtilityAir.on_step, function(actor, data)
@@ -796,7 +798,7 @@ Callback.add(stateUtilityAir.on_step, function(actor, data)
     end
 
 
-    if data.fired < 1 and actor.image_index > 3 then
+    if data.fired < 1 and actor.image_index >= 1 then
         data.fired = 1
         local dir = 225
         if 0 == actor:skill_util_facing_direction() then
@@ -811,8 +813,10 @@ Callback.add(stateUtilityAir.on_step, function(actor, data)
         tether.y = data.end_y
         tether.parent = actor
         tether.destroyLength = speed
+
+        data.skewered_actors = actor:collision_line_list(actor.x, actor.y, data.end_x, data.end_y, gm.constants.pActorCollisionBase, false, true)
     end
-    if data.fired == 1 then
+    if data.fired == 1 and actor.image_index >= 3 then
         local x2 = data.end_x
         local y2 = data.end_y
         local damage = actor:skill_get_damage(utility)
@@ -884,174 +888,226 @@ Callback.add(stateSpecial.on_step, function(actor, data)
 end)
 
 --Special Air Skill
-local objLinks = Object.new("objGrapplerLink")
-objLinks:set_depth(-280)
-objLinks:set_sprite(sGrapplerTornado)
+        -- local objLinks = Object.new("objGrapplerLink")
+        -- objLinks:set_depth(-280)
+        -- objLinks:set_sprite(sGrapplerTornado)
 
-Callback.add(objLinks.on_create, function(inst)
+        -- Callback.add(objLinks.on_create, function(inst)
+        --     inst.parent = -4
+
+        --     local data = Instance.get_data(inst)
+        --     data.lifetime = 300
+        --     data.targets = {}
+        --     data.speed = 10
+        --     data.knockback_duration = 20
+        -- end)
+
+        -- Callback.add(objLinks.on_step, function(inst)
+        --     if not Instance.exists(inst.parent) then inst:destroy() return end 
+
+        --     local data = Instance.get_data(inst)
+        --     local actor_data = Instance.get_data(inst.parent)
+
+        --     -- After the last target has been hit, return to the parent
+        --     if #data.targets <= 0 then
+        --         local speed = data.speed
+        --         local x2 = inst.parent.x
+        --         local y2 = inst.parent.y
+        --         local dir = Math.direction(inst.x, inst.y, x2, y2)
+        --         local xVector = Math.dcos(dir) * speed
+        --         local yVector = Math.dsin(dir) * speed
+
+        --         if math.abs(inst.x - x2) > math.abs(xVector) or math.abs(inst.y - y2) > math.abs(yVector) then
+        --             if  math.abs(inst.x - x2) > math.abs(xVector) then
+        --                 inst.x = inst.x + xVector
+        --             end
+        --             if math.abs(inst.y - y2) > math.abs(yVector)  then
+        --                 inst.y = inst.y - yVector
+        --             end
+        --         else
+        --             inst:destroy()
+        --             actor_data.special_air_stall = false
+        --             return
+        --         end
+        --     end
+
+        --     if data.lifetime >= 0 then
+        --         data.lifetime = data.lifetime - 1
+        --     else
+        --         inst:destroy()
+        --         actor_data.special_air_stall = false
+        --         return
+        --     end
+
+        --     --hold all enemies connected by the links in place
+        --     for _, target in ipairs(data.targets) do
+        --         if data.knockback_duration > 0 then
+        --             local speed = data.speed
+        --             data.knockback_duration = data.knockback_duration - 1
+        --             if not target.enemy:is_colliding(gm.constants.pBlock, target.enemy.x, target.enemy.y + speed) and not target.enemy:is_colliding(gm.constants.pBlock, target.enemy.x, target.enemy.y - speed) then
+        --                 target.enemy.y = target.enemy.y - math.random(0, 20) * Math.sign(inst.parent.y - target.enemy.y)
+        --                 target.y = target.enemy.y + 1
+        --             end
+        --             if not target.enemy:is_colliding(gm.constants.pBlock, target.enemy.x + speed) and not target.enemy:is_colliding(gm.constants.pBlock, target.enemy.x - speed) then
+        --                 target.enemy.x = target.enemy.x - math.random(0, 20) * Math.sign(inst.parent.x - target.enemy.x)
+        --                 target.x = target.enemy.x + 1
+        --             end
+                    
+        --         else
+        --             target.enemy.x = target.x
+        --             target.enemy.y = target.y
+        --             target.enemy.free = false
+        --             if Net.Host then
+        --                 target.enemy:apply_knockback(1, 5, 0)
+        --             end
+        --         end
+        --     end
+
+        --     --shorten the first tether until it deletes itself and deals damage to the target
+        --     if data.knockback_duration <= 0 and #data.targets > 0 then
+        --         local speed = data.speed
+        --         local x2 = data.targets[1].x
+        --         local y2 = data.targets[1].y
+        --         local dir = Math.direction(inst.x, inst.y, x2, y2)
+        --         local xVector = Math.dcos(dir) * speed
+        --         local yVector = Math.dsin(dir) * speed
+
+        --         if math.abs(inst.x - x2) > math.abs(xVector) or math.abs(inst.y - y2) > math.abs(yVector) then
+        --             if  math.abs(inst.x - x2) > math.abs(xVector) then
+        --                 inst.x = inst.x + xVector
+        --             end
+        --             if math.abs(inst.y - y2) > math.abs(yVector)  then
+        --                 inst.y = inst.y - yVector
+        --             end
+        --         else
+        --             local damage = inst.parent:skill_get_damage(specialAir) * (1+inst.parent.pogo_charges) --damage increases with # of pogo charges
+        --             inst.parent:fire_direct(data.targets[1].enemy, damage)
+        --             data.targets[1].enemy.free = true
+        --             data.targets[1].enemy.pVspeed = -1
+        --             table.remove(data.targets, 1)
+        --         end
+        --     end
+        -- end)
+
+        -- Callback.add(objLinks.on_draw, function(inst)
+
+        --     local data = Instance.get_data(inst)
+
+        --     gm.draw_set_color(Color.from_rgb(0, 255, 255))
+        --     gm.draw_set_alpha(1)
+        --     local previousX = inst.x
+        --     local previousY = inst.y
+
+        --     if #data.targets > 0 then
+        --         for _, target in ipairs(data.targets) do
+        --             gm.draw_line_width(previousX, previousY, target.x, target.y, 2)
+        --             previousX = target.x
+        --             previousY = target.y
+        --         end
+        --     end
+            
+        -- end)
+
+        -- Callback.add(stateSpecialAir.on_enter, function(actor, data)
+        --     data.fired = 0
+        --     actor.image_index = 0
+        --     actor.sprite_index = sGrapplerShoot.shoot4b
+        --     data.freeze_x = actor.x
+        --     data.freeze_y = actor.y
+        --     data.stall_flag = false
+        -- end)
+
+        -- Callback.add(stateSpecialAir.on_step, function(actor, data)
+        --     actor:skill_util_fix_hspeed()
+        --     actor:actor_animation_set(actor.sprite_index, 0.2, false)
+        --     local actor_data = Instance.get_data(actor)
+
+        --     if data.fired < 1 and actor.image_index > 3 then
+        --         data.fired = 1
+        --         local links = objLinks:create(actor.x, actor.y)
+        --         links.parent = actor
+        --         actor_data.special_air_stall = true
+        --         --an array table???
+        --         local actors = actor:get_collisions_circle(gm.constants.pActorCollisionBase, 300)
+        --         local indexCounter = 0
+        --         local linkData = Instance.get_data(links)
+        --         for _, enemy in ipairs(actors) do
+        --             if Util.bool(enemy.free) and enemy.team ~= actor.team and not enemy:is_climbing() then
+        --                 table.insert(linkData.targets, {
+        --                     enemy = enemy,
+        --                     x = enemy.x,
+        --                     y = enemy.y
+        --                 })
+        --                 data.stall_flag = true
+        --                 indexCounter = indexCounter + 1
+        --             end
+        --         end
+        --     end
+        --     if actor_data.special_air_stall and data.stall_flag then
+        --         actor.invincible = math.max(actor.invincible, 20)
+        --         actor.image_index = 3
+        --         actor.x = data.freeze_x
+        --         actor.y = data.freeze_y
+        --         actor.free = false
+        --     end
+
+        --     actor:skill_util_exit_state_on_anim_end()
+        -- end)
+
+        -- Callback.add(stateSpecialAir.on_exit, function(actor, data)
+        --     actor.free = true
+        --     actor.pVspeed = -2
+        --     actor.pogo_charges = 0
+        -- end)
+
+local objSlamTether = Object.new("objGrapplerSlamTether")
+objSlamTether:set_depth(-280)
+
+Callback.add(objSlamTether.on_create, function(inst)
     inst.parent = -4
-
     local data = Instance.get_data(inst)
     data.lifetime = 300
-    data.targets = {}
-    data.speed = 10
-    data.knockback_duration = 20
+    data.target = -4
 end)
 
-Callback.add(objLinks.on_step, function(inst)
-    if not Instance.exists(inst.parent) then inst:destroy() return end 
-
-    local data = Instance.get_data(inst)
-    local actor_data = Instance.get_data(inst.parent)
-
-    -- After the last target has been hit, return to the parent
-    if #data.targets <= 0 then
-        local speed = data.speed
-        local x2 = inst.parent.x
-        local y2 = inst.parent.y
-        local dir = Math.direction(inst.x, inst.y, x2, y2)
-        local xVector = Math.dcos(dir) * speed
-        local yVector = Math.dsin(dir) * speed
-
-        if math.abs(inst.x - x2) > math.abs(xVector) or math.abs(inst.y - y2) > math.abs(yVector) then
-            if  math.abs(inst.x - x2) > math.abs(xVector) then
-                inst.x = inst.x + xVector
-            end
-            if math.abs(inst.y - y2) > math.abs(yVector)  then
-                inst.y = inst.y - yVector
-            end
-        else
-            inst:destroy()
-            actor_data.special_air_stall = false
-            return
-        end
-    end
-
-    if data.lifetime >= 0 then
-        data.lifetime = data.lifetime - 1
-    else
-        inst:destroy()
-        actor_data.special_air_stall = false
-        return
-    end
-
-    --hold all enemies connected by the links in place
-    for _, target in ipairs(data.targets) do
-        if data.knockback_duration > 0 then
-            local speed = data.speed
-            data.knockback_duration = data.knockback_duration - 1
-            if not target.enemy:is_colliding(gm.constants.pBlock, target.enemy.x, target.enemy.y + speed) and not target.enemy:is_colliding(gm.constants.pBlock, target.enemy.x, target.enemy.y - speed) then
-                target.enemy.y = target.enemy.y - math.random(0, 20) * Math.sign(inst.parent.y - target.enemy.y)
-                target.y = target.enemy.y + 1
-            end
-            if not target.enemy:is_colliding(gm.constants.pBlock, target.enemy.x + speed) and not target.enemy:is_colliding(gm.constants.pBlock, target.enemy.x - speed) then
-                target.enemy.x = target.enemy.x - math.random(0, 20) * Math.sign(inst.parent.x - target.enemy.x)
-                target.x = target.enemy.x + 1
-            end
-            
-        else
-            target.enemy.x = target.x
-            target.enemy.y = target.y
-            target.enemy.free = false
-            if Net.Host then
-                target.enemy:apply_knockback(1, 5, 0)
-            end
-        end
-    end
-
-    --shorten the first tether until it deletes itself and deals damage to the target
-    if data.knockback_duration <= 0 and #data.targets > 0 then
-        local speed = data.speed
-        local x2 = data.targets[1].x
-        local y2 = data.targets[1].y
-        local dir = Math.direction(inst.x, inst.y, x2, y2)
-        local xVector = Math.dcos(dir) * speed
-        local yVector = Math.dsin(dir) * speed
-
-        if math.abs(inst.x - x2) > math.abs(xVector) or math.abs(inst.y - y2) > math.abs(yVector) then
-            if  math.abs(inst.x - x2) > math.abs(xVector) then
-                inst.x = inst.x + xVector
-            end
-            if math.abs(inst.y - y2) > math.abs(yVector)  then
-                inst.y = inst.y - yVector
-            end
-        else
-            local damage = inst.parent:skill_get_damage(specialAir) * (1+inst.parent.pogo_charges) --damage increases with # of pogo charges
-            inst.parent:fire_direct(data.targets[1].enemy, damage)
-            data.targets[1].enemy.free = true
-            data.targets[1].enemy.pVspeed = -1
-            table.remove(data.targets, 1)
-        end
-    end
-end)
-
-Callback.add(objLinks.on_draw, function(inst)
-
-    local data = Instance.get_data(inst)
-
-    gm.draw_set_color(Color.from_rgb(0, 255, 255))
-    gm.draw_set_alpha(1)
-    local previousX = inst.x
-    local previousY = inst.y
-
-    if #data.targets > 0 then
-        for _, target in ipairs(data.targets) do
-            gm.draw_line_width(previousX, previousY, target.x, target.y, 2)
-            previousX = target.x
-            previousY = target.y
-        end
-    end
-    
-end)
+--TODO: add in the code for drawing the tether and how it behaves.
 
 Callback.add(stateSpecialAir.on_enter, function(actor, data)
+    actor.sprite_index = sGrapplerSkills.shoot4b
     data.fired = 0
     actor.image_index = 0
-    actor.sprite_index = sGrapplerShoot.shoot4b
-    data.freeze_x = actor.x
-    data.freeze_y = actor.y
-    data.stall_flag = false
+    data.enemy_x = nil
+    data.enemy_y = nil
 end)
 
 Callback.add(stateSpecialAir.on_step, function(actor, data)
     actor:skill_util_fix_hspeed()
     actor:actor_animation_set(actor.sprite_index, 0.2, false)
-    local actor_data = Instance.get_data(actor)
+    local failed_to_find_flag = true
+    local closest = -4
+    local closest_dist = 0
 
-    if data.fired < 1 and actor.image_index > 3 then
-        data.fired = 1
-        local links = objLinks:create(actor.x, actor.y)
-        links.parent = actor
-        actor_data.special_air_stall = true
-        --an array table???
-        local actors = actor:get_collisions_circle(gm.constants.pActorCollisionBase, 300)
-        local indexCounter = 0
-        local linkData = Instance.get_data(links)
-        for _, enemy in ipairs(actors) do
-            if Util.bool(enemy.free) and enemy.team ~= actor.team and not enemy:is_climbing() then
-                table.insert(linkData.targets, {
-                    enemy = enemy,
-                    x = enemy.x,
-                    y = enemy.y
-                })
-                data.stall_flag = true
-                indexCounter = indexCounter + 1
+    if actor.image_index > 1 and data.fired == 0 then
+        local targets = actor:get_collision_rectangle(gm.constants.pActorCollisionBase, actor.x, actor.y, actor.x+320*actor.image_xscale, actor.y+320)
+        for _, target in ipairs(targets) do
+            if Util.bool(target.free) and target.team ~= actor.team and not target:is_climbing() then
+                failed_to_find_flag = false
+                if Math.distance(actor.x, actor.y, target.x, target.y) > closest_dist then
+                    closest = target
+                    closest_dist = Math.distance(actor.x, actor.y, target.x, target.y)
+                    data.enemy_x = closest.x
+                    data.enemy_y = closest.y
+                end
             end
         end
-    end
-    if actor_data.special_air_stall and data.stall_flag then
-        actor.invincible = math.max(actor.invincible, 20)
-        actor.image_index = 3
-        actor.x = data.freeze_x
-        actor.y = data.freeze_y
-        actor.free = false
+
+        if not failed_to_find_flag then
+            local tether = objSlamTether:create(actor.x, actor.y)
+            tether.parent = actor
+            tether.target = closest
+            --TODO set up the tether object to work as intended
+        end
     end
 
     actor:skill_util_exit_state_on_anim_end()
-end)
-
-Callback.add(stateSpecialAir.on_exit, function(actor, data)
-    actor.free = true
-    actor.pVspeed = -2
-    actor.pogo_charges = 0
 end)
